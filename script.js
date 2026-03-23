@@ -2,7 +2,7 @@ window.onload = () => {
     document.getElementById('dhEmi').value = new Date().toISOString().slice(0,16);
     addProduto();
 };
-
+//
 function clean(v) { return v ? v.replace(/\D/g, '') : ""; }
 function getV(id) { return (document.getElementById(id) || {value: ""}).value; }
 
