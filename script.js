@@ -193,9 +193,11 @@ function baixarXML() {
 // INTEGRAÇÃO API - NUVEM FISCAL
 // ==========================================
 async function obterToken() {
-    // Como você está usando o config.js, ele vai puxar a variável CONFIG de lá!
-    if (typeof CONFIG === 'undefined' || !CONFIG.client_id || !CONFIG.client_secret) {
-        throw new Error("As credenciais não foram encontradas no arquivo config.js!");
+    const clientId = getV('clientId');
+    const clientSecret = getV('clientSecret');
+
+    if (!clientId || !clientSecret) {
+        throw new Error("O Client ID e o Client Secret devem ser preenchidos!");
     }
 
     const resp = await fetch(`${API_BASE}/oauth/token`, {
@@ -203,8 +205,8 @@ async function obterToken() {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
             grant_type: 'client_credentials',
-            client_id: CONFIG.client_id,
-            client_secret: CONFIG.client_secret,
+            client_id: clientId,
+            client_secret: clientSecret,
             scope: 'nfe'
         })
     });
