@@ -624,17 +624,24 @@ const CFOP_LIST = [
 ];
 
 function criarDatalistCFOP() {
-    if (document.getElementById('cfop-datalist')) return;
-    const dl = document.createElement('datalist');
-    dl.id = 'cfop-datalist';
-    dl.innerHTML = CFOP_LIST.map(([cod, desc]) => `<option value="${cod.replace('.','')}">${cod} - ${desc}</option>`).join('');
-    document.body.appendChild(dl);
+    let dl = document.getElementById('cfop-datalist');
+    if (!dl) {
+        dl = document.createElement('datalist');
+        dl.id = 'cfop-datalist';
+        document.body.appendChild(dl);
+    }
+    if (dl.options.length === 0) {
+        dl.innerHTML = CFOP_LIST.map(([cod, desc]) =>
+            `<option value="${cod.replace('.', '')}">${cod} – ${desc}</option>`
+        ).join('');
+    }
 }
 
 // ==========================================
 // GESTÃO DE PRODUTOS E TRIBUTAÇÃO
 // ==========================================
 function addProduto() {
+    criarDatalistCFOP();
     const container = document.getElementById('listaProdutos');
     const id = Date.now();
     const nItens = document.querySelectorAll('.produto-item').length + 1;
@@ -1461,3 +1468,373 @@ async function validarNNFDisponivel(cnpj, nNF, serie) {
         return null;
     }
 }
+
+// ==========================================
+// CADASTRO DE EMPRESA — MODAL
+// ==========================================
+
+let _empCpfCnpjAtual = '';   // CNPJ/CPF da empresa salva (habilita aba cert)
+
+// --- Abertura / fechamento ---
+function abrirCadastroEmpresa() {
+    document.getElementById('modalEmpresa').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    empResetarModal();
+}
+
+function fecharCadastroEmpresa() {
+    document.getElementById('modalEmpresa').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function empResetarModal() {
+    // Limpa campos
+    ['empCpfCnpj','empRazaoSocial','empNomeFantasia','empEmail','empFone',
+     'empIE','empIM','empCep','empLogradouro','empNumero',
+     'empComplemento','empBairro','empCidade','empUF','empCodigoIBGE']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+
+    document.getElementById('empTipoJuridica').checked = true;
+    empAlternarTipo();
+
+    // Volta para aba 1 e desabilita aba 2
+    trocarAbaEmpresa('dados');
+    document.getElementById('empTabBtnCert').disabled = true;
+
+    empOcultarAlert();
+    _empCpfCnpjAtual = '';
+}
+
+// --- Troca de aba ---
+function trocarAbaEmpresa(aba) {
+    document.getElementById('empAbaDados').classList.toggle('active', aba === 'dados');
+    document.getElementById('empAbaCert').classList.toggle('active', aba === 'cert');
+    document.getElementById('empTabBtnDados').classList.toggle('active', aba === 'dados');
+    document.getElementById('empTabBtnCert').classList.toggle('active', aba === 'cert');
+
+    if (aba === 'cert' && _empCpfCnpjAtual) {
+        empVerificarCertificado(_empCpfCnpjAtual);
+    }
+}
+
+// --- Alert helper ---
+function empMostrarAlert(msg, tipo = 'info') {
+    const icons = { info: 'ℹ️', success: '✅', error: '❌', warning: '⚠️' };
+    const el    = document.getElementById('empAlert');
+    document.getElementById('empAlertIcon').textContent = icons[tipo] || 'ℹ️';
+    document.getElementById('empAlertMsg').textContent  = msg;
+    el.className = `emp-alert ${tipo} show`;
+}
+
+function empOcultarAlert() {
+    const el = document.getElementById('empAlert');
+    el.className = 'emp-alert info';
+}
+
+// --- Tipo Jurídica / Física ---
+function empAlternarTipo() {
+    const isPF = document.getElementById('empTipoPF').checked;
+    document.getElementById('empLabelDoc').firstChild.textContent = isPF ? 'CPF ' : 'CNPJ ';
+    document.getElementById('empCpfCnpj').placeholder = isPF ? '000.000.000-00' : '00.000.000/0000-00';
+    document.getElementById('empCpfCnpj').maxLength    = isPF ? 14 : 18;
+    document.getElementById('empBtnBuscar').style.display = isPF ? 'none' : '';
+}
+
+// --- Máscaras ---
+function empMascaraDoc(el) {
+    const isPF  = document.getElementById('empTipoPF').checked;
+    let d = el.value.replace(/\D/g, '');
+    if (isPF) {
+        d = d.slice(0, 11);
+        el.value = d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    } else {
+        d = d.slice(0, 14);
+        el.value = d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+    }
+}
+
+function empMascaraCep(el) {
+    let d = el.value.replace(/\D/g, '').slice(0, 8);
+    el.value = d.length > 5 ? d.replace(/(\d{5})(\d{1,3})/, '$1-$2') : d;
+}
+
+// --- Busca CNPJ na Receita Federal ---
+async function empBuscarCNPJ() {
+    const cnpj = document.getElementById('empCpfCnpj').value.replace(/\D/g, '');
+    if (cnpj.length !== 14) { empMostrarAlert('Informe um CNPJ completo (14 dígitos) antes de buscar.', 'warning'); return; }
+
+    const loading = document.getElementById('empLoadingDoc');
+    loading.style.display = 'flex';
+    empOcultarAlert();
+
+    try {
+        const resp = await fetch(`buscar_cnpj.php?cnpj=${cnpj}`);
+        const res  = await resp.json();
+        loading.style.display = 'none';
+
+        if (res.error) { empMostrarAlert('Erro ao consultar CNPJ: ' + res.error, 'error'); return; }
+
+        // Preenche campos com dados da Receita Federal
+        const end = res.estabelecimento?.endereco || res.endereco || {};
+        document.getElementById('empRazaoSocial').value   = res.razao_social  || res.nome || '';
+        document.getElementById('empNomeFantasia').value  = res.nome_fantasia || res.estabelecimento?.nome_fantasia || '';
+        document.getElementById('empEmail').value         = res.email || '';
+        document.getElementById('empFone').value          = res.telefones?.[0]
+            ? `(${res.telefones[0].ddd}) ${res.telefones[0].numero}` : '';
+        document.getElementById('empCep').value           = (end.cep || '').replace(/(\d{5})(\d{3})/, '$1-$2');
+        document.getElementById('empLogradouro').value    = end.logradouro || '';
+        document.getElementById('empNumero').value        = end.numero     || 'SN';
+        document.getElementById('empComplemento').value   = end.complemento || '';
+        document.getElementById('empBairro').value        = end.bairro      || '';
+        document.getElementById('empCidade').value        = end.municipio?.descricao || end.cidade || '';
+        document.getElementById('empUF').value            = end.estado?.sigla || end.uf || '';
+        document.getElementById('empCodigoIBGE').value    = end.municipio?.codigo_ibge || end.codigo_municipio || '';
+
+        if (res.empresa_cadastrada) {
+            _empCpfCnpjAtual = cnpj;
+            empHabilitarAbaCert();
+            empAtualizarBotaoSalvar();
+            empMostrarAlert('Empresa já cadastrada na Nuvem Fiscal. Dados carregados para conferência. Você pode atualizar os dados ou ir direto para o Certificado Digital.', 'info');
+        } else {
+            empAtualizarBotaoSalvar();
+            empMostrarAlert('Dados da Receita Federal carregados. Confira as informações e clique em "Salvar Empresa".', 'success');
+        }
+
+    } catch(e) {
+        loading.style.display = 'none';
+        empMostrarAlert('Falha na conexão ao buscar o CNPJ. Tente novamente.', 'error');
+    }
+}
+
+// --- Busca CEP via ViaCEP ---
+async function empBuscarCEP() {
+    const cep = document.getElementById('empCep').value.replace(/\D/g, '');
+    if (cep.length !== 8) { empMostrarAlert('Informe um CEP válido (8 dígitos).', 'warning'); return; }
+
+    try {
+        const resp = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        const res  = await resp.json();
+        if (res.erro) { empMostrarAlert('CEP não encontrado.', 'warning'); return; }
+
+        document.getElementById('empLogradouro').value  = res.logradouro || '';
+        document.getElementById('empBairro').value      = res.bairro     || '';
+        document.getElementById('empCidade').value      = res.localidade || '';
+        document.getElementById('empUF').value          = res.uf         || '';
+        document.getElementById('empCodigoIBGE').value  = res.ibge       || '';
+        document.getElementById('empNumero').focus();
+    } catch(e) {
+        empMostrarAlert('Falha ao buscar o CEP. Verifique sua conexão.', 'error');
+    }
+}
+
+// --- Salvar / Atualizar empresa (POST ou PUT /empresas) ---
+async function empSalvar() {
+    const cnpj = document.getElementById('empCpfCnpj').value.replace(/\D/g, '');
+    if (!cnpj) { empMostrarAlert('Informe o CNPJ/CPF antes de salvar.', 'warning'); return; }
+    if (!document.getElementById('empRazaoSocial').value.trim()) {
+        empMostrarAlert('O campo Razão Social é obrigatório.', 'warning'); return;
+    }
+
+    const modoAtualizar = !!_empCpfCnpjAtual;
+    const btn = document.getElementById('empBtnSalvar');
+    btn.disabled  = true;
+    btn.innerText = '⏳ ' + (modoAtualizar ? 'Atualizando...' : 'Salvando...');
+    empOcultarAlert();
+
+    const payload = {
+        cpf_cnpj:           cnpj,
+        nome_razao_social:  document.getElementById('empRazaoSocial').value.trim(),
+        nome_fantasia:      document.getElementById('empNomeFantasia').value.trim(),
+        email:              document.getElementById('empEmail').value.trim(),
+        fone:               document.getElementById('empFone').value.replace(/\D/g, ''),
+        inscricao_estadual: document.getElementById('empIE').value.trim(),
+        inscricao_municipal:document.getElementById('empIM').value.trim(),
+        endereco: {
+            logradouro:       document.getElementById('empLogradouro').value.trim(),
+            numero:           document.getElementById('empNumero').value.trim() || 'SN',
+            complemento:      document.getElementById('empComplemento').value.trim(),
+            bairro:           document.getElementById('empBairro').value.trim(),
+            cidade:           document.getElementById('empCidade').value.trim(),
+            uf:               document.getElementById('empUF').value.trim().toUpperCase(),
+            cep:              document.getElementById('empCep').value.replace(/\D/g, ''),
+            codigo_municipio: document.getElementById('empCodigoIBGE').value.trim(),
+            codigo_pais:      '1058',
+            pais:             'Brasil'
+        }
+    };
+
+    try {
+        const resp = await fetch('cadastrar_empresa.php', {
+            method: modoAtualizar ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const res = await resp.json();
+
+        if (res.already_exists || resp.status === 409) {
+            _empCpfCnpjAtual = cnpj;
+            empHabilitarAbaCert();
+            empMostrarAlert(res.message || 'Empresa já cadastrada. Prossiga para o Certificado Digital.', 'info');
+        } else if (resp.ok && (res.id || res.cpf_cnpj)) {
+            _empCpfCnpjAtual = cnpj;
+            empHabilitarAbaCert();
+            const msg = modoAtualizar
+                ? 'Dados atualizados com sucesso!'
+                : 'Empresa cadastrada com sucesso! Prossiga para o envio do Certificado Digital.';
+            empMostrarAlert(msg, 'success');
+            showToast(msg, 'success');
+            carregarDropdownsEmpresas();
+        } else {
+            const msg = res.message || res.error || JSON.stringify(res).substring(0, 200);
+            empMostrarAlert('Erro: ' + msg, 'error');
+        }
+    } catch(e) {
+        empMostrarAlert('Falha na conexão. Verifique o servidor PHP e tente novamente.', 'error');
+    } finally {
+        btn.disabled  = false;
+        empAtualizarBotaoSalvar();
+    }
+}
+
+function empHabilitarAbaCert() {
+    document.getElementById('empTabBtnCert').disabled = false;
+}
+
+function empAtualizarBotaoSalvar() {
+    const btn = document.getElementById('empBtnSalvar');
+    btn.innerText = _empCpfCnpjAtual ? '💾 Atualizar Empresa' : '💾 Salvar Empresa';
+}
+
+// --- Verificar status do certificado ---
+async function empVerificarCertificado(cpfCnpj) {
+    document.getElementById('certStatusValue').textContent = 'Verificando...';
+    document.getElementById('certVencimento').textContent  = '—';
+    document.getElementById('certTitular').textContent     = '—';
+    document.getElementById('certStatusDot').className     = 'cert-status-dot inativo';
+
+    try {
+        const resp = await fetch(`upload_certificado.php?cpf_cnpj=${cpfCnpj.replace(/\D/g,'')}`);
+        const res  = await resp.json();
+
+        if (resp.ok && res.data_validade) {
+            const venc    = new Date(res.data_validade);
+            const hoje    = new Date();
+            const diasRest = Math.ceil((venc - hoje) / 86400000);
+            const expirado = diasRest < 0;
+            const expirando = diasRest >= 0 && diasRest <= 30;
+
+            document.getElementById('certStatusValue').textContent  = expirado ? 'Expirado' : 'Ativo';
+            document.getElementById('certVencimento').textContent   = venc.toLocaleDateString('pt-BR');
+            document.getElementById('certTitular').textContent      = res.nome_razao_social || '—';
+
+            const dot = document.getElementById('certStatusDot');
+            dot.className = 'cert-status-dot ' + (expirado ? 'inativo' : expirando ? 'expirando' : 'ativo');
+
+            if (expirando && !expirado) {
+                empMostrarAlert(`Certificado expira em ${diasRest} dia(s). Faça o upload do novo certificado abaixo.`, 'warning');
+            }
+        } else {
+            document.getElementById('certStatusValue').textContent = 'Nenhum certificado ativo';
+            empMostrarAlert('Nenhum certificado encontrado. Faça o upload do arquivo .pfx ou .p12 abaixo.', 'info');
+        }
+    } catch(e) {
+        document.getElementById('certStatusValue').textContent = 'Erro ao verificar';
+    }
+}
+
+// --- Seleção de arquivo ---
+function empArquivoSelecionado(input) {
+    const nomEl = document.getElementById('certArquivoNome');
+    if (input.files && input.files[0]) {
+        nomEl.textContent    = '📎 ' + input.files[0].name;
+        nomEl.style.display  = 'block';
+        document.querySelector('.upload-area-text').textContent = 'Arquivo selecionado';
+    } else {
+        nomEl.style.display = 'none';
+        document.querySelector('.upload-area-text').textContent = 'Clique ou arraste o arquivo aqui';
+    }
+}
+
+// --- Upload do certificado (PUT /empresas/{cpf_cnpj}/certificado) ---
+async function empUploadCertificado() {
+    const fileInput = document.getElementById('certArquivo');
+    const arquivo   = fileInput._droppedFile || (fileInput.files && fileInput.files[0]);
+    const senha     = document.getElementById('certSenha').value;
+
+    if (!arquivo) {
+        empMostrarAlert('Selecione o arquivo do certificado (.pfx ou .p12) antes de enviar.', 'warning'); return;
+    }
+    if (!senha) {
+        empMostrarAlert('Informe a senha do certificado.', 'warning'); return;
+    }
+    if (!_empCpfCnpjAtual) {
+        empMostrarAlert('CNPJ/CPF não identificado. Volte à aba de Dados Cadastrais.', 'error'); return;
+    }
+
+    const btn = document.getElementById('empBtnCert');
+    btn.disabled  = true;
+    btn.innerText = '⏳ Enviando...';
+    empOcultarAlert();
+
+    const form = new FormData();
+    form.append('cpf_cnpj', _empCpfCnpjAtual.replace(/\D/g, ''));
+    form.append('senha', senha);
+    form.append('certificado', arquivo);
+
+    try {
+        const resp = await fetch('upload_certificado.php', { method: 'POST', body: form });
+        const res  = await resp.json();
+
+        if (resp.ok && !res.error) {
+            empMostrarAlert('Certificado enviado com sucesso! A empresa está pronta para emissão de NF-e.', 'success');
+            showToast('Certificado digital enviado com sucesso!', 'success');
+            document.getElementById('certSenha').value = '';
+            fileInput.value = '';
+            fileInput._droppedFile = null;
+            document.getElementById('certArquivoNome').style.display = 'none';
+            document.querySelector('.upload-area-text').textContent = 'Clique ou arraste o arquivo aqui';
+            empVerificarCertificado(_empCpfCnpjAtual);
+        } else {
+            const errObj = res.error || {};
+            const errMsg = typeof errObj === 'object'
+                ? (errObj.message || JSON.stringify(errObj))
+                : String(errObj);
+            const errCode = typeof errObj === 'object' ? errObj.code : '';
+            const msgFinal = errCode === 'InvalidCertificateOrPassword'
+                ? 'Certificado ou senha inválidos. Verifique se o arquivo .pfx/.p12 e a senha estão corretos.'
+                : ('Erro ao enviar certificado: ' + (res.message || errMsg || 'Tente novamente.'));
+            empMostrarAlert(msgFinal, 'error');
+        }
+    } catch(e) {
+        empMostrarAlert('Falha na conexão ao enviar o certificado. Verifique o servidor e tente novamente.', 'error');
+    } finally {
+        btn.disabled  = false;
+        btn.innerText = '🔐 Enviar Certificado';
+    }
+}
+
+// Fechar modal clicando no overlay
+document.getElementById('modalEmpresa').addEventListener('click', function(e) {
+    if (e.target === this) fecharCadastroEmpresa();
+});
+
+// Drag & Drop na upload area
+(function() {
+    const area = document.getElementById('certUploadArea');
+    if (!area) return;
+    area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('dragover'); });
+    area.addEventListener('dragleave', () => area.classList.remove('dragover'));
+    area.addEventListener('drop', e => {
+        e.preventDefault();
+        area.classList.remove('dragover');
+        const dt = e.dataTransfer;
+        if (dt && dt.files[0]) {
+            const input = document.getElementById('certArquivo');
+            // Não é possível atribuir DataTransfer diretamente, mas simulamos via FormData
+            input._droppedFile = dt.files[0];
+            document.getElementById('certArquivoNome').textContent = '📎 ' + dt.files[0].name;
+            document.getElementById('certArquivoNome').style.display = 'block';
+            document.querySelector('.upload-area-text').textContent = 'Arquivo selecionado';
+        }
+    });
+})();

@@ -859,6 +859,208 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* =============================================
+   MODAL CADASTRO DE EMPRESA
+   ============================================= */
+#modalEmpresa {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.75);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 300;
+  overflow-y: auto;
+  padding: 24px 16px;
+  animation: fadeIn .2s ease;
+}
+
+.modal-emp-box {
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 28px;
+  box-shadow: var(--shadow);
+  animation: slideInModal .25s ease;
+}
+
+/* Tabs */
+.emp-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+}
+
+.emp-tab {
+  flex: 1;
+  padding: 9px 16px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text2);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.emp-tab:hover:not(:disabled) { color: var(--text); background: var(--card2); }
+.emp-tab.active { background: var(--blue); color: #fff; }
+.emp-tab:disabled { opacity: .35; cursor: not-allowed; }
+
+.emp-tab-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.2);
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.emp-tab-content { display: none; }
+.emp-tab-content.active { display: block; }
+
+/* Alert info / success / error dentro da modal */
+.emp-alert {
+  display: none;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 18px;
+  border: 1px solid;
+}
+.emp-alert.show { display: flex; }
+.emp-alert.info    { background: var(--blue-dim);   border-color: var(--blue);   color: var(--blue); }
+.emp-alert.success { background: var(--green-dim);  border-color: var(--green);  color: var(--green); }
+.emp-alert.error   { background: var(--red-dim);    border-color: var(--red);    color: var(--red); }
+.emp-alert.warning { background: var(--orange-dim); border-color: var(--orange); color: var(--orange); }
+
+/* Seção dentro da aba */
+.emp-section {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.emp-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Status do certificado */
+.cert-status-box {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  margin-bottom: 18px;
+}
+
+.cert-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cert-status-dot.ativo   { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.cert-status-dot.inativo { background: var(--text3); }
+.cert-status-dot.expirando { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
+
+.cert-status-info { flex: 1; }
+.cert-status-label { font-size: 11px; color: var(--text2); }
+.cert-status-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+/* Upload area */
+.upload-area {
+  border: 2px dashed var(--border2);
+  border-radius: var(--radius);
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+  background: var(--bg2);
+  position: relative;
+}
+
+.upload-area:hover, .upload-area.dragover {
+  border-color: var(--blue);
+  background: var(--blue-dim);
+}
+
+.upload-area input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.upload-area-icon { font-size: 28px; margin-bottom: 8px; }
+.upload-area-text { font-size: 13px; font-weight: 500; color: var(--text2); }
+.upload-area-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
+.upload-area-file { font-size: 12px; color: var(--green); font-weight: 600; margin-top: 8px; }
+
+/* Tipo pessoa radios */
+.tipo-pessoa-group {
+  display: flex;
+  gap: 8px;
+}
+
+.tipo-pessoa-opt {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: var(--bg2);
+  transition: var(--transition);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.tipo-pessoa-opt:has(input:checked) {
+  border-color: var(--blue);
+  background: var(--blue-dim);
+  color: var(--blue);
+}
+
+.tipo-pessoa-opt input { accent-color: var(--blue); }
+
+/* =============================================
    TOAST NOTIFICATIONS
    ============================================= */
 #toast-container {

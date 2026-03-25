@@ -19,6 +19,9 @@
         <span class="badge-env">SANDBOX</span>
     </div>
     <div class="topbar-actions">
+        <button class="btn btn-primary" onclick="abrirCadastroEmpresa()" title="Cadastrar nova empresa na Nuvem Fiscal">
+            🏢 + Empresa
+        </button>
         <button class="btn btn-ghost" onclick="abrirConsulta()">
             📋 Consultar Notas
         </button>
@@ -461,6 +464,224 @@
 
 <!-- TOAST CONTAINER -->
 <div id="toast-container"></div>
+
+<!-- ================================================ -->
+<!-- MODAL CADASTRO DE EMPRESA                        -->
+<!-- ================================================ -->
+<div id="modalEmpresa">
+    <div class="modal-box modal-emp-box">
+
+        <!-- Header -->
+        <div class="modal-header">
+            <div>
+                <div class="modal-title">🏢 Cadastro de Empresa</div>
+                <div style="font-size:12px; color:var(--text2); margin-top:3px;">
+                    Sincronização direta com a Nuvem Fiscal
+                </div>
+            </div>
+            <button class="btn btn-ghost" onclick="fecharCadastroEmpresa()">✕ Fechar</button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="emp-tabs">
+            <button class="emp-tab active" id="empTabBtnDados" onclick="trocarAbaEmpresa('dados')">
+                <span class="emp-tab-num">1</span> Dados Cadastrais
+            </button>
+            <button class="emp-tab" id="empTabBtnCert" onclick="trocarAbaEmpresa('cert')" disabled>
+                <span class="emp-tab-num">2</span> Certificado Digital
+            </button>
+        </div>
+
+        <!-- Alert (global dentro da modal) -->
+        <div id="empAlert" class="emp-alert info">
+            <span id="empAlertIcon">ℹ️</span>
+            <span id="empAlertMsg"></span>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- ABA 1 — DADOS CADASTRAIS                                     -->
+        <!-- ============================================================ -->
+        <div id="empAbaDados" class="emp-tab-content active">
+
+            <!-- Identificação -->
+            <div class="emp-section">
+                <div class="emp-section-title">🪪 Identificação</div>
+                <div class="grid-2" style="margin-bottom:12px;">
+                    <div class="field" style="margin:0;">
+                        <label>Tipo de Pessoa</label>
+                        <div class="tipo-pessoa-group">
+                            <label class="tipo-pessoa-opt">
+                                <input type="radio" name="empTipoPessoa" id="empTipoJuridica" value="J" checked onchange="empAlternarTipo()">
+                                🏢 Jurídica (CNPJ)
+                            </label>
+                            <label class="tipo-pessoa-opt">
+                                <input type="radio" name="empTipoPessoa" id="empTipoPF" value="F" onchange="empAlternarTipo()">
+                                👤 Física (CPF)
+                            </label>
+                        </div>
+                    </div>
+                    <div class="field" style="margin:0;">
+                        <label id="empLabelDoc">CNPJ <span class="tip" data-tip="Informe somente números. O sistema buscará os dados automaticamente na Receita Federal.">?</span></label>
+                        <div style="display:flex; gap:8px;">
+                            <input type="text" id="empCpfCnpj" placeholder="00.000.000/0000-00" maxlength="18" oninput="empMascaraDoc(this)">
+                            <button class="btn btn-ghost" style="white-space:nowrap; flex-shrink:0;" onclick="empBuscarCNPJ()" id="empBtnBuscar">
+                                🔍 Buscar
+                            </button>
+                        </div>
+                        <div id="empLoadingDoc" style="display:none; font-size:11px; color:var(--text2); margin-top:6px; display:flex; gap:6px; align-items:center;">
+                            <span class="spinner"></span> Consultando Receita Federal...
+                        </div>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="field" style="margin:0;">
+                        <label>Razão Social <span class="tip" data-tip="Nome empresarial registrado na Receita Federal. Preenchido automaticamente ao buscar o CNPJ.">?</span></label>
+                        <input type="text" id="empRazaoSocial" placeholder="Nome da empresa">
+                    </div>
+                    <div class="field" style="margin:0;">
+                        <label>Nome Fantasia</label>
+                        <input type="text" id="empNomeFantasia" placeholder="Nome comercial (opcional)">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contato e Fiscal -->
+            <div class="emp-section">
+                <div class="emp-section-title">📋 Contato e Dados Fiscais</div>
+                <div class="grid-2" style="margin-bottom:12px;">
+                    <div class="field" style="margin:0;">
+                        <label>E-mail <span class="tip" data-tip="Usado para envio de documentos fiscais e notificações da Nuvem Fiscal.">?</span></label>
+                        <input type="email" id="empEmail" placeholder="contato@empresa.com.br">
+                    </div>
+                    <div class="field" style="margin:0;">
+                        <label>Telefone</label>
+                        <input type="text" id="empFone" placeholder="(00) 0000-0000">
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="field" style="margin:0;">
+                        <label>Inscrição Estadual <span class="tip" data-tip="IE do estado de domicílio fiscal. Necessária para emissão de NF-e. Informe 'ISENTO' se não contribuinte.">?</span></label>
+                        <input type="text" id="empIE" placeholder="000.000.000.000 ou ISENTO">
+                    </div>
+                    <div class="field" style="margin:0;">
+                        <label>Inscrição Municipal <span class="tip" data-tip="Obrigatória para emissão de NFS-e (serviços). Opcional para NF-e de mercadorias.">?</span></label>
+                        <input type="text" id="empIM" placeholder="Somente se prestador de serviços">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Endereço -->
+            <div class="emp-section">
+                <div class="emp-section-title">📍 Endereço</div>
+                <div style="display:grid; grid-template-columns:160px 1fr 90px; gap:10px; margin-bottom:12px;">
+                    <div class="field" style="margin:0;">
+                        <label>CEP <span class="tip" data-tip="Digite o CEP para preencher o endereço automaticamente.">?</span></label>
+                        <div style="display:flex; gap:6px;">
+                            <input type="text" id="empCep" placeholder="00000-000" maxlength="9" oninput="empMascaraCep(this)">
+                            <button class="btn btn-ghost btn-icon" onclick="empBuscarCEP()" title="Buscar CEP" style="flex-shrink:0;">🔍</button>
+                        </div>
+                    </div>
+                    <div class="field" style="margin:0;">
+                        <label>Logradouro</label>
+                        <input type="text" id="empLogradouro" placeholder="Rua, Avenida, etc.">
+                    </div>
+                    <div class="field" style="margin:0;">
+                        <label>Número</label>
+                        <input type="text" id="empNumero" placeholder="SN">
+                    </div>
+                </div>
+                <div class="grid-2" style="margin-bottom:12px;">
+                    <div class="field" style="margin:0;">
+                        <label>Complemento</label>
+                        <input type="text" id="empComplemento" placeholder="Sala, Andar (opcional)">
+                    </div>
+                    <div class="field" style="margin:0;">
+                        <label>Bairro</label>
+                        <input type="text" id="empBairro" placeholder="Bairro">
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 60px 120px; gap:10px;">
+                    <div class="field" style="margin:0;">
+                        <label>Município <span class="tip" data-tip="Nome da cidade conforme tabela IBGE.">?</span></label>
+                        <input type="text" id="empCidade" placeholder="Cidade">
+                    </div>
+                    <div class="field" style="margin:0;">
+                        <label>UF</label>
+                        <input type="text" id="empUF" placeholder="SP" maxlength="2" style="text-transform:uppercase;">
+                    </div>
+                    <div class="field" style="margin:0;">
+                        <label>Código IBGE <span class="tip" data-tip="Código de 7 dígitos do município na tabela do IBGE. Preenchido automaticamente ao buscar o CEP.">?</span></label>
+                        <input type="text" id="empCodigoIBGE" placeholder="0000000" maxlength="7">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rodapé aba 1 -->
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+                <button class="btn btn-ghost" onclick="fecharCadastroEmpresa()">Cancelar</button>
+                <button class="btn btn-success" id="empBtnSalvar" onclick="empSalvar()">
+                    💾 Salvar Empresa
+                </button>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- ABA 2 — CERTIFICADO DIGITAL                                  -->
+        <!-- ============================================================ -->
+        <div id="empAbaCert" class="emp-tab-content">
+
+            <!-- Status atual -->
+            <div class="emp-section">
+                <div class="emp-section-title">🔐 Status do Certificado</div>
+                <div class="cert-status-box" id="certStatusBox">
+                    <div class="cert-status-dot inativo" id="certStatusDot"></div>
+                    <div class="cert-status-info">
+                        <div class="cert-status-label">Status</div>
+                        <div class="cert-status-value" id="certStatusValue">Verificando...</div>
+                    </div>
+                    <div class="cert-status-info">
+                        <div class="cert-status-label">Vencimento</div>
+                        <div class="cert-status-value" id="certVencimento">—</div>
+                    </div>
+                    <div class="cert-status-info">
+                        <div class="cert-status-label">Titular</div>
+                        <div class="cert-status-value" id="certTitular">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upload -->
+            <div class="emp-section">
+                <div class="emp-section-title">📤 Enviar Novo Certificado</div>
+
+                <div class="field">
+                    <label>Arquivo do Certificado (.pfx ou .p12)</label>
+                    <div class="upload-area" id="certUploadArea">
+                        <input type="file" id="certArquivo" accept=".pfx,.p12" onchange="empArquivoSelecionado(this)">
+                        <div class="upload-area-icon">📂</div>
+                        <div class="upload-area-text">Clique ou arraste o arquivo aqui</div>
+                        <div class="upload-area-hint">Formatos aceitos: .pfx / .p12</div>
+                        <div class="upload-area-file" id="certArquivoNome" style="display:none;"></div>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label>Senha do Certificado <span class="tip" data-tip="Senha definida no momento da geração do certificado e-CNPJ/e-CPF. A senha não é armazenada — é enviada diretamente à Nuvem Fiscal de forma segura (HTTPS).">?</span></label>
+                    <input type="password" id="certSenha" placeholder="••••••••" autocomplete="new-password">
+                </div>
+            </div>
+
+            <!-- Rodapé aba 2 -->
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+                <button class="btn btn-ghost" onclick="fecharCadastroEmpresa()">Fechar</button>
+                <button class="btn btn-success" id="empBtnCert" onclick="empUploadCertificado()">
+                    🔐 Enviar Certificado
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
 
 <script src="script.js"></script>
 </body>

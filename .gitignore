@@ -1,2 +1,15 @@
 config.php
 config.js
+.claude
+# Diagnóstico / utilitários locais
+test_ssl.php
+
+# Certificados e chaves privadas
+*.pfx
+*.p12
+*.key
+cacert.pem
+
+# Credenciais e variáveis de ambiente
+.env
+.env.*
