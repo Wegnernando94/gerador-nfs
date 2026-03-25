@@ -193,8 +193,8 @@ function baixarXML() {
 // INTEGRAÇÃO API - NUVEM FISCAL
 // ==========================================
 async function obterToken() {
-    // Como você está usando o config.js, ele vai puxar a variável CREDENCIAIS de lá!
-    if (typeof CREDENCIAIS === 'undefined' || !CREDENCIAIS.client_id) {
+    // Como você está usando o config.js, ele vai puxar a variável CONFIG de lá!
+    if (typeof CONFIG === 'undefined' || !CONFIG.client_id || !CONFIG.client_secret) {
         throw new Error("As credenciais não foram encontradas no arquivo config.js!");
     }
 
@@ -203,8 +203,8 @@ async function obterToken() {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
             grant_type: 'client_credentials',
-            client_id: CREDENCIAIS.client_id,
-            client_secret: CREDENCIAIS.client_secret,
+            client_id: CONFIG.client_id,
+            client_secret: CONFIG.client_secret,
             scope: 'nfe'
         })
     });
