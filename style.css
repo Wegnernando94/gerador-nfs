@@ -242,13 +242,94 @@ body {
 .field:last-child { margin-bottom: 0; }
 
 .field label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
   font-weight: 500;
   color: var(--text2);
   margin-bottom: 5px;
   letter-spacing: .2px;
 }
+
+/* =============================================
+   TOOLTIP (ícone ? / i)
+   ============================================= */
+.tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--border2);
+  color: var(--text2);
+  font-size: 9px;
+  font-weight: 700;
+  font-style: normal;
+  font-family: 'Inter', sans-serif;
+  cursor: default;
+  position: relative;
+  vertical-align: middle;
+  line-height: 1;
+  transition: background .15s, color .15s;
+  user-select: none;
+}
+
+.tip:hover {
+  background: var(--blue);
+  color: #fff;
+}
+
+/* Balão do tooltip */
+.tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.55;
+  padding: 9px 13px;
+  border-radius: var(--radius-sm);
+  width: 270px;
+  white-space: normal;
+  box-shadow: var(--shadow);
+  z-index: 500;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s .05s;
+  text-align: left;
+}
+
+/* Seta */
+.tip::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--border2);
+  z-index: 501;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s .05s;
+}
+
+.tip:hover::after,
+.tip:hover::before {
+  opacity: 1;
+}
+
+/* Quando o tooltip está perto da borda esquerda */
+.tip.tip-right::after { left: 0; transform: none; }
+.tip.tip-right::before { left: 8px; transform: none; }
 
 input, select, textarea {
   width: 100%;
@@ -287,7 +368,24 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
 
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 .grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+
+/* Painel de tributos calculados */
+.trib-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-top: 12px; }
+.trib-panel-title { font-size: 10px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+.trib-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 14px; }
+.trib-item { display: flex; flex-direction: column; gap: 2px; }
+.trib-label { font-size: 10px; color: var(--text2); }
+.trib-val { font-size: 12px; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: var(--text); }
+
+/* Breakdown action bar */
+.action-bar-breakdown { display: flex; gap: 18px; align-items: center; margin-right: 18px; padding-right: 18px; border-right: 1px solid var(--border2); }
+.breakdown-item { display: flex; flex-direction: column; }
+.breakdown-label { font-size: 10px; color: var(--text2); }
+.breakdown-val { font-size: 12px; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: var(--text); }
+.breakdown-neg .breakdown-val { color: var(--red); }
+.breakdown-pos .breakdown-val { color: var(--green); }
 
 /* =============================================
    BUTTONS
@@ -844,9 +942,12 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
 
 @media (max-width: 768px) {
   .main-grid { grid-template-columns: 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr; }
   .grid-5 { grid-template-columns: 1fr 1fr; }
+  .trib-grid { grid-template-columns: 1fr 1fr; }
   .topbar { padding: 0 16px; }
   .app-container { padding: 16px 16px 80px; }
-  .action-bar { padding: 10px 16px; }
+  .action-bar { padding: 10px 16px; flex-wrap: wrap; gap: 10px; }
   .action-bar-value { font-size: 18px; }
+  .action-bar-breakdown { margin-right: 0; padding-right: 0; border-right: none; flex-wrap: wrap; gap: 10px; }
 }

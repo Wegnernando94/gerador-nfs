@@ -705,15 +705,70 @@ function toggleAliqICMSGlobal() {
 }
 
 function recalc() {
-    let totalNota = 0;
+    // ---- Grupo de produtos (vProd) ----
+    let vProd = 0;
     document.querySelectorAll(".produto-item").forEach(item => {
         const q = parseFloat(item.querySelector(".qtd").value) || 0;
         const v = parseFloat(item.querySelector(".vUn").value) || 0;
-        totalNota += (q * v);
+        vProd += (q * v);
     });
-    const res = document.getElementById('resTotalNota');
-    if(res) res.innerText = totalNota.toFixed(2);
-    return totalNota;
+
+    // ---- Grupo C — Descontos ----
+    const vDesc  = Math.max(0, parseFloat(getV('vDescGlobal')) || 0);
+
+    // ---- Grupo B — Adicionais ----
+    const vFrete = Math.max(0, parseFloat(getV('vFrete'))  || 0);
+    const vSeg   = Math.max(0, parseFloat(getV('vSeg'))    || 0);
+    const vOutro = Math.max(0, parseFloat(getV('vOutro'))  || 0);
+    const vFCP   = Math.max(0, parseFloat(getV('vFCP'))    || 0);
+    const pIPI   = Math.max(0, parseFloat(getV('pIPIGlobal')) || 0);
+    const pST    = Math.max(0, parseFloat(getV('pSTGlobal'))  || 0);
+
+    // ---- Grupo A — Embutidos (não somam ao vNF) ----
+    const pICMS   = Math.max(0, parseFloat(getV('pICMSGlobal'))   || 0);
+    const pPIS    = Math.max(0, parseFloat(getV('pPISGlobal'))    || 0);
+    const pCOFINS = Math.max(0, parseFloat(getV('pCOFINSGlobal')) || 0);
+
+    // ---- Cálculos intermediários ----
+    const vSubLiq = Math.max(0, vProd - vDesc);               // subtotal líquido
+    const cst      = getV('cstGlobal');
+    const semValor = CST_SEM_VALOR.includes(cst);
+
+    const vBC     = semValor ? 0 : vSubLiq;                   // base ICMS
+    const vICMS   = parseFloat((vBC * (pICMS   / 100)).toFixed(2));
+    const vIPI    = parseFloat((vSubLiq * (pIPI   / 100)).toFixed(2));
+    const vST     = parseFloat((vSubLiq * (pST    / 100)).toFixed(2));
+    const vPIS    = parseFloat((vSubLiq * (pPIS   / 100)).toFixed(2));
+    const vCOFINS = parseFloat((vSubLiq * (pCOFINS / 100)).toFixed(2));
+
+    // V. Tot. Trib. — Lei da Transparência (aprox.)
+    const vTotTrib = parseFloat((vICMS + vPIS + vCOFINS + vIPI + vST).toFixed(2));
+
+    // ---- Fechamento da nota ----
+    // vNF = SubLiq + Grupo B (IPI + ST + Frete + Seg + Outro + FCP)
+    const vAcrescimos = parseFloat((vIPI + vST + vFrete + vSeg + vOutro + vFCP).toFixed(2));
+    const vNF         = parseFloat((vSubLiq + vAcrescimos).toFixed(2));
+
+    // ---- Atualiza action bar (breakdown) ----
+    const fmt = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+    setText('resTotalNota',  fmt(vNF));
+    setText('resSubtotal',   fmt(vProd));
+    setText('resDesconto',   fmt(vDesc));
+    setText('resAcrescimos', fmt(vAcrescimos));
+
+    // ---- Atualiza painel de tributos calculados ----
+    setText('dispBCICMS',   fmt(vBC));
+    setText('dispVICMS',    fmt(vICMS));
+    setText('dispBCST',     fmt(vSubLiq));   // BC ST = subtotal líquido (base para ST)
+    setText('dispVST',      fmt(vST));
+    setText('dispVIPI',     fmt(vIPI));
+    setText('dispVPIS',     fmt(vPIS));
+    setText('dispVCOFINS',  fmt(vCOFINS));
+    setText('dispVTotTrib', fmt(vTotTrib));
+
+    return vNF;
 }
 
 // ==========================================
@@ -724,18 +779,43 @@ function gerarXMLCompleto() {
     const fin = getV('finNFe');
     const ref = getV('refNFe');
     let itensXml = "";
-    let vProdTotal = 0;
-    let vIcmsTotal = 0;
+
+    // Lê campos globais
+    const cstXml    = getV('cstGlobal');
+    const semValXml = CST_SEM_VALOR.includes(cstXml);
+    const pIcmsXml  = parseFloat(getV('pICMSGlobal'))   || 0;
+    const pPisXml   = parseFloat(getV('pPISGlobal'))     || 0;
+    const pCofXml   = parseFloat(getV('pCOFINSGlobal'))  || 0;
+    const pIpiXml   = parseFloat(getV('pIPIGlobal'))     || 0;
+    const vDescXml  = Math.max(0, parseFloat(getV('vDescGlobal')) || 0);
+    const vFreteXml = Math.max(0, parseFloat(getV('vFrete'))      || 0);
+    const vSegXml   = Math.max(0, parseFloat(getV('vSeg'))        || 0);
+    const vOutroXml = Math.max(0, parseFloat(getV('vOutro'))      || 0);
+    const vFCPXml   = Math.max(0, parseFloat(getV('vFCP'))        || 0);
+    const pSTXml    = parseFloat(getV('pSTGlobal'))      || 0;
+
+    let vProdTotal = 0, vIcmsTotal = 0, vPisTotal = 0, vCofTotal = 0, vIpiTotal = 0;
 
     document.querySelectorAll(".produto-item").forEach((item, i) => {
-        const q = parseFloat(item.querySelector(".qtd").value) || 0;
-        const v = parseFloat(item.querySelector(".vUn").value) || 0;
-        const pIcms = parseFloat(item.querySelector(".pICMS").value) || 0;
+        const q     = parseFloat(item.querySelector(".qtd").value) || 0;
+        const v     = parseFloat(item.querySelector(".vUn").value) || 0;
+        const cfop  = item.querySelector(".cfop").value;
         const vProd = q * v;
-        const vIcms = vProd * (pIcms / 100);
-        
-        vProdTotal += vProd;
-        vIcmsTotal += vIcms;
+        const vBC   = semValXml ? 0 : vProd;
+        const vIcms = parseFloat((vBC    * (pIcmsXml / 100)).toFixed(2));
+        const vPis  = parseFloat((vProd  * (pPisXml  / 100)).toFixed(2));
+        const vCof  = parseFloat((vProd  * (pCofXml  / 100)).toFixed(2));
+        const vIpi  = parseFloat((vProd  * (pIpiXml  / 100)).toFixed(2));
+
+        vProdTotal += vProd; vIcmsTotal += vIcms;
+        vPisTotal  += vPis;  vCofTotal  += vCof; vIpiTotal += vIpi;
+
+        const icmsTag = semValXml
+            ? `<ICMS${cstXml}><orig>0</orig><CST>${cstXml}</CST></ICMS${cstXml}>`
+            : `<ICMS00><orig>0</orig><CST>${cstXml}</CST><vBC>${vBC.toFixed(2)}</vBC><pICMS>${pIcmsXml.toFixed(2)}</pICMS><vICMS>${vIcms.toFixed(2)}</vICMS></ICMS00>`;
+        const ipiTag = pIpiXml > 0
+            ? `<IPI><cEnq>999</cEnq><IPITrib><CST>${fin==='4'?'53':'50'}</CST><vBC>${vProd.toFixed(2)}</vBC><pIPI>${pIpiXml.toFixed(2)}</pIPI><vIPI>${vIpi.toFixed(2)}</vIPI></IPITrib></IPI>`
+            : '';
 
         itensXml += `
         <det nItem="${i+1}">
@@ -743,15 +823,24 @@ function gerarXMLCompleto() {
                 <cProd>${i+1}</cProd>
                 <xProd>${item.querySelector(".xProd").value}</xProd>
                 <NCM>21069090</NCM>
-                <CFOP>${item.querySelector(".cfop").value}</CFOP>
+                <CFOP>${cfop}</CFOP>
                 <uCom>UN</uCom><qCom>${q.toFixed(4)}</qCom>
                 <vUnCom>${v.toFixed(2)}</vUnCom><vProd>${vProd.toFixed(2)}</vProd><indTot>1</indTot>
             </prod>
             <imposto>
-                <ICMS><ICMS00><orig>0</orig><CST>${item.querySelector(".cst").value}</CST><vBC>${vProd.toFixed(2)}</vBC><pICMS>${pIcms.toFixed(2)}</pICMS><vICMS>${vIcms.toFixed(2)}</vICMS></ICMS00></ICMS>
+                <ICMS>${icmsTag}</ICMS>
+                ${ipiTag}
+                <PIS><PISAliq><CST>01</CST><vBC>${vProd.toFixed(2)}</vBC><pPIS>${pPisXml.toFixed(2)}</pPIS><vPIS>${vPis.toFixed(2)}</vPIS></PISAliq></PIS>
+                <COFINS><COFINSAliq><CST>01</CST><vBC>${vProd.toFixed(2)}</vBC><pCOFINS>${pCofXml.toFixed(2)}</pCOFINS><vCOFINS>${vCof.toFixed(2)}</vCOFINS></COFINSAliq></COFINS>
             </imposto>
         </det>`;
     });
+
+    // Fechamento
+    const vSubLiqXml = Math.max(0, vProdTotal - vDescXml);
+    const vSTXml     = parseFloat((vSubLiqXml * (pSTXml / 100)).toFixed(2));
+    const vNFXml     = parseFloat((vSubLiqXml + vIpiTotal + vSTXml + vFreteXml + vSegXml + vOutroXml + vFCPXml).toFixed(2));
+    const isDev      = fin === '4';
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <NFe xmlns="http://www.portalfiscal.inf.br/nfe">
@@ -768,8 +857,23 @@ function gerarXMLCompleto() {
         ${itensXml}
         <total>
             <ICMSTot>
-                <vBC>${vProdTotal.toFixed(2)}</vBC><vICMS>${vIcmsTotal.toFixed(2)}</vICMS>
-                <vProd>${vProdTotal.toFixed(2)}</vProd><vNF>${vProdTotal.toFixed(2)}</vNF>
+                <vBC>${(semValXml?0:vSubLiqXml).toFixed(2)}</vBC>
+                <vICMS>${vIcmsTotal.toFixed(2)}</vICMS>
+                <vICMSDeson>0.00</vICMSDeson><vFCP>0.00</vFCP>
+                <vBCST>${vSTXml>0?vSubLiqXml.toFixed(2):'0.00'}</vBCST>
+                <vST>${vSTXml.toFixed(2)}</vST>
+                <vFCPST>${vFCPXml.toFixed(2)}</vFCPST><vFCPSTRet>0.00</vFCPSTRet>
+                <vProd>${vProdTotal.toFixed(2)}</vProd>
+                <vFrete>${vFreteXml.toFixed(2)}</vFrete>
+                <vSeg>${vSegXml.toFixed(2)}</vSeg>
+                <vDesc>${vDescXml.toFixed(2)}</vDesc>
+                <vII>0.00</vII>
+                <vIPI>${isDev?'0.00':vIpiTotal.toFixed(2)}</vIPI>
+                <vIPIDevol>${isDev?vIpiTotal.toFixed(2):'0.00'}</vIPIDevol>
+                <vPIS>${vPisTotal.toFixed(2)}</vPIS>
+                <vCOFINS>${vCofTotal.toFixed(2)}</vCOFINS>
+                <vOutro>${vOutroXml.toFixed(2)}</vOutro>
+                <vNF>${vNFXml.toFixed(2)}</vNF>
             </ICMSTot>
         </total>
     </infNFe>
@@ -855,7 +959,16 @@ async function transmitirParaSefaz() {
 
         if (fin === "4") payload.infNFe.ide.NFref = [{ refNFe: clean(ref) }];
 
-        let vTot = 0, vBCTot = 0, vIcmsTot = 0, vPisTot = 0, vCofinsTot = 0;
+        // ---- Lê campos de despesas/descontos/IPI/ST ----
+        const vDescN   = Math.max(0, parseFloat(getV('vDescGlobal')) || 0);
+        const vFreteN  = Math.max(0, parseFloat(getV('vFrete'))      || 0);
+        const vSegN    = Math.max(0, parseFloat(getV('vSeg'))        || 0);
+        const vOutroN  = Math.max(0, parseFloat(getV('vOutro'))      || 0);
+        const vFCPN    = Math.max(0, parseFloat(getV('vFCP'))        || 0);
+        const pIPIN    = Math.max(0, parseFloat(getV('pIPIGlobal'))  || 0);
+        const pSTN     = Math.max(0, parseFloat(getV('pSTGlobal'))   || 0);
+
+        let vTot = 0, vBCTot = 0, vIcmsTot = 0, vPisTot = 0, vCofinsTot = 0, vIPITot = 0;
         const regime    = getV('regimeTrib');
         const isSimples = regime === 'simples';
         const cstGlobal = getV('cstGlobal');
@@ -885,10 +998,11 @@ async function transmitirParaSefaz() {
             const vI      = parseFloat((vP * (pI / 100)).toFixed(2));
             const vPIS    = parseFloat((vP * (pPIS / 100)).toFixed(2));
             const vCOFINS = parseFloat((vP * (pCOFINS / 100)).toFixed(2));
+            const vItemIPI = parseFloat((vP * (pIPIN / 100)).toFixed(2));
 
             vTot += vP;
             if (!semValor) vBCTot += vP;  // BC só acumula quando o CST tributa
-            vIcmsTot += vI; vPisTot += vPIS; vCofinsTot += vCOFINS;
+            vIcmsTot += vI; vPisTot += vPIS; vCofinsTot += vCOFINS; vIPITot += vItemIPI;
 
             // Monta nó ICMS conforme regime e CST
             let icmsNode;
@@ -909,24 +1023,46 @@ async function transmitirParaSefaz() {
                 }
             }
 
+            const impostoItem = {
+                ICMS: icmsNode,
+                PIS:  { PISAliq:    { CST: "01", vBC: vP, pPIS: pPIS,       vPIS: vPIS } },
+                COFINS: { COFINSAliq: { CST: "01", vBC: vP, pCOFINS: pCOFINS, vCOFINS: vCOFINS } }
+            };
+            // IPI por item (Grupo B — soma ao total da nota)
+            if (pIPIN > 0) {
+                const ipiCST = fin === '4' ? '53' : '50'; // 53 = saída isenta devolução, 50 = saída tributada
+                impostoItem.IPI = { cEnq: '999', IPITrib: { CST: ipiCST, vBC: vP, pIPI: pIPIN, vIPI: vItemIPI } };
+            }
+
             payload.infNFe.det.push({
                 nItem: i + 1,
                 prod: { cProd: (i+1).toString(), cEAN: "SEM GTIN", xProd: item.querySelector(".xProd").value, NCM: "21069090", CFOP: cfop, uCom: "UN", qCom: q, vUnCom: v, vProd: vP, cEANTrib: "SEM GTIN", uTrib: "UN", qTrib: q, vUnTrib: v, indTot: 1 },
-                imposto: {
-                    ICMS: icmsNode,
-                    PIS:  { PISAliq:    { CST: "01", vBC: vP, pPIS: pPIS,       vPIS: vPIS } },
-                    COFINS: { COFINSAliq: { CST: "01", vBC: vP, pCOFINS: pCOFINS, vCOFINS: vCOFINS } }
-                }
+                imposto: impostoItem
             });
         });
 
-        payload.infNFe.total.ICMSTot.vBC = vBCTot;
-        payload.infNFe.total.ICMSTot.vProd = vTot;
-        payload.infNFe.total.ICMSTot.vNF = vTot;
-        payload.infNFe.total.ICMSTot.vICMS = vIcmsTot;
-        payload.infNFe.total.ICMSTot.vPIS = vPisTot;
-        payload.infNFe.total.ICMSTot.vCOFINS = vCofinsTot;
-        payload.infNFe.pag.detPag[0].vPag = vTot;
+        // ---- Fechamento do total da nota ----
+        const vSubLiqN = Math.max(0, vTot - vDescN);
+        const vSTTot   = parseFloat((vSubLiqN * (pSTN / 100)).toFixed(2));
+        const vNFN     = parseFloat((vSubLiqN + vIPITot + vSTTot + vFreteN + vSegN + vOutroN + vFCPN).toFixed(2));
+        const isDev    = fin === '4';
+
+        payload.infNFe.total.ICMSTot.vBC       = vBCTot;
+        payload.infNFe.total.ICMSTot.vICMS      = vIcmsTot;
+        payload.infNFe.total.ICMSTot.vProd      = vTot;
+        payload.infNFe.total.ICMSTot.vDesc      = vDescN;
+        payload.infNFe.total.ICMSTot.vFrete     = vFreteN;
+        payload.infNFe.total.ICMSTot.vSeg       = vSegN;
+        payload.infNFe.total.ICMSTot.vOutro     = vOutroN;
+        payload.infNFe.total.ICMSTot.vIPI       = isDev ? 0 : vIPITot;
+        payload.infNFe.total.ICMSTot.vIPIDevol  = isDev ? vIPITot : 0;
+        payload.infNFe.total.ICMSTot.vBCST      = vSTTot > 0 ? vSubLiqN : 0;
+        payload.infNFe.total.ICMSTot.vST        = vSTTot;
+        payload.infNFe.total.ICMSTot.vFCPST     = vFCPN;
+        payload.infNFe.total.ICMSTot.vPIS       = vPisTot;
+        payload.infNFe.total.ICMSTot.vCOFINS    = vCofinsTot;
+        payload.infNFe.total.ICMSTot.vNF        = vNFN;
+        payload.infNFe.pag.detPag[0].vPag       = vNFN;
 
         const resp = await fetch('transmitir.php', { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' } });
         const res = await resp.json();

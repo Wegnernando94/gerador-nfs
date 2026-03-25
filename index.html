@@ -43,7 +43,7 @@
             </div>
 
             <div class="field">
-                <label>Finalidade da NF-e</label>
+                <label>Finalidade da NF-e <span class="tip" data-tip="Normal: venda/saída comum. Devolução: retorno de mercadoria — exige chave da nota original. Complementar: ajuste de valores ou impostos de uma nota já autorizada, sem cancelá-la.">?</span></label>
                 <select id="finNFe" onchange="toggleDevolucao()">
                     <option value="1">NF-e Normal — Venda / Saída</option>
                     <option value="4">Devolução de Mercadoria</option>
@@ -84,11 +84,11 @@
 
             <div class="grid-2" style="margin-top:4px;">
                 <div class="field">
-                    <label>Número (nNF)</label>
+                    <label>Número (nNF) <span class="tip" data-tip="Número sequencial da nota. O sistema sugere o próximo disponível. Altere somente em casos de lacuna intencional — repetir ou pular números gera inconsistências no registro fiscal.">?</span></label>
                     <input type="number" id="nNF" value="1" min="1">
                 </div>
                 <div class="field">
-                    <label>Série</label>
+                    <label>Série <span class="tip" data-tip="Identifica o conjunto de numeração da nota. Série 1 é a padrão. Séries diferentes podem organizar filiais, tipos de operação ou pontos de emissão distintos, desde que autorizadas na SEFAZ.">?</span></label>
                     <input type="number" id="serie" value="1" min="1">
                 </div>
             </div>
@@ -106,17 +106,17 @@
             </div>
 
             <div class="field">
-                <label>Selecionar Empresa</label>
+                <label>Selecionar Empresa <span class="tip" data-tip="Escolha a empresa emitente. Confirme se o CNPJ e a Inscrição Estadual estão ativos na SEFAZ — uma IE cancelada ou suspensa resulta em rejeição imediata da nota.">?</span></label>
                 <select id="dropEmit" onchange="selecionarEmpresa(this, 'emit')">
                     <option value="">⏳ Carregando empresas...</option>
                 </select>
             </div>
             <div class="field">
-                <label>Razão Social</label>
+                <label>Razão Social <span class="tip" data-tip="Preenchido automaticamente do cadastro. Não edite manualmente — qualquer divergência com os dados da Receita Federal pode rejeitar a nota na transmissão.">?</span></label>
                 <input type="text" id="xNomeEmit" placeholder="Nome da empresa">
             </div>
             <div class="field">
-                <label>CNPJ</label>
+                <label>CNPJ <span class="tip" data-tip="Preenchido automaticamente do cadastro. A SEFAZ valida este número na transmissão — um CNPJ inativo, suspenso ou com dígito verificador inválido rejeita a nota imediatamente.">?</span></label>
                 <input type="text" id="cnpjEmit" placeholder="00.000.000/0000-00">
             </div>
             <input type="hidden" id="ufEmit">
@@ -140,17 +140,17 @@
             </div>
 
             <div class="field">
-                <label>Selecionar Empresa</label>
+                <label>Selecionar Empresa <span class="tip" data-tip="Escolha o destinatário da nota. Verifique especialmente a UF — ela determina a alíquota interestadual de ICMS aplicada automaticamente (7% ou 12% conforme a região).">?</span></label>
                 <select id="dropDest" onchange="selecionarEmpresa(this, 'dest')">
                     <option value="">⏳ Carregando empresas...</option>
                 </select>
             </div>
             <div class="field">
-                <label>Razão Social</label>
+                <label>Razão Social <span class="tip" data-tip="Preenchido automaticamente do cadastro. Não edite manualmente — qualquer divergência com os dados da Receita Federal pode rejeitar a nota na transmissão.">?</span></label>
                 <input type="text" id="xNomeDest" placeholder="Nome da empresa">
             </div>
             <div class="field">
-                <label>CNPJ</label>
+                <label>CNPJ <span class="tip" data-tip="Preenchido automaticamente do cadastro. A SEFAZ valida este número na transmissão — um CNPJ inativo, suspenso ou com dígito verificador inválido rejeita a nota imediatamente.">?</span></label>
                 <input type="text" id="cnpjDest" placeholder="00.000.000/0000-00">
             </div>
             <input type="hidden" id="ufDest">
@@ -175,27 +175,103 @@
         </div>
         <div class="grid-5">
             <div class="field">
-                <label>Regime Tributário</label>
+                <label>Regime Tributário <span class="tip" data-tip="Define o enquadramento fiscal do emitente. Regime Normal (Lucro Real/Presumido) usa códigos CST. Simples Nacional usa CSOSN — o sistema troca os campos de imposto automaticamente ao alterar esta seleção.">?</span></label>
                 <select id="regimeTrib" onchange="atualizarCSTpadrao()">
                     <option value="normal">Regime Normal</option>
                     <option value="simples">Simples Nacional</option>
                 </select>
             </div>
             <div class="field">
-                <label id="labelCodTrib">CST ICMS</label>
-                <select id="cstGlobal" onchange="toggleAliqICMSGlobal()"></select>
+                <label><span id="labelCodTrib">CST ICMS</span> <span class="tip" data-tip="Código de Situação Tributária. Define como a mercadoria é tratada fiscalmente: tributada integralmente (00), isenta (40/41), com Substituição Tributária (10/30) ou imposto já retido anteriormente (60/500). CST incorreto é uma das principais causas de rejeição.">?</span></label>
+                <select id="cstGlobal" onchange="toggleAliqICMSGlobal(); recalc()"></select>
             </div>
             <div class="field" id="campoAliqICMS">
-                <label>% ICMS</label>
-                <input type="number" id="pICMSGlobal" value="18.00" title="Alíquota interna. CFOP 6xxx aplica 7/12% automático.">
+                <label>% ICMS <span class="tip" data-tip="Alíquota do ICMS sobre a base de cálculo. Para operações internas use a alíquota estadual (12% ou 18%). Para CFOP 6xxx o sistema aplica 7% ou 12% automaticamente. Imposto embutido no preço — não soma ao valor total da nota.">?</span></label>
+                <input type="number" id="pICMSGlobal" value="18.00" oninput="recalc()">
             </div>
             <div class="field">
-                <label>% PIS</label>
-                <input type="number" id="pPISGlobal" value="1.65">
+                <label>% PIS <span class="tip" data-tip="Alíquota da contribuição PIS sobre o faturamento. Valor apenas de destaque informativo — já está embutido no preço e não altera o total da nota (vNF). Alíquota padrão no regime não cumulativo: 1,65%.">?</span></label>
+                <input type="number" id="pPISGlobal" value="1.65" oninput="recalc()">
             </div>
             <div class="field">
-                <label>% COFINS</label>
-                <input type="number" id="pCOFINSGlobal" value="7.60">
+                <label>% COFINS <span class="tip" data-tip="Alíquota da contribuição COFINS sobre o faturamento. Assim como o PIS, é destaque informativo — não altera o total da nota. Alíquota padrão no regime não cumulativo: 7,60%.">?</span></label>
+                <input type="number" id="pCOFINSGlobal" value="7.60" oninput="recalc()">
+            </div>
+        </div>
+
+        <!-- Linha 2: IPI, ICMS-ST, Desconto, FCP -->
+        <div class="grid-4" style="margin-top:10px;">
+            <div class="field" style="margin:0;">
+                <label>% IPI <span class="tip" data-tip="Alíquota do IPI para produtos industrializados. Diferente do ICMS/PIS/COFINS, o IPI SOMA ao total da nota (vNF). Em notas de devolução é registrado como 'IPI Devolvido' e também compõe o total.">?</span></label>
+                <input type="number" id="pIPIGlobal" value="0" step="0.01" min="0" oninput="recalc()">
+            </div>
+            <div class="field" style="margin:0;">
+                <label>% ICMS-ST <span class="tip" data-tip="Alíquota da Substituição Tributária. Usada quando o emitente é o contribuinte substituto — responsável por recolher o ICMS de toda a cadeia até o consumidor final. O valor calculado SOMA ao total da nota (vNF).">?</span></label>
+                <input type="number" id="pSTGlobal" value="0" step="0.01" min="0" oninput="recalc()">
+            </div>
+            <div class="field" style="margin:0;">
+                <label>Desconto (R$) <span class="tip" data-tip="Desconto total concedido na nota. Subtraído do valor bruto antes de qualquer cálculo de imposto — reduz a base do ICMS, PIS e COFINS. Informado na tag vDesc do XML enviado à SEFAZ.">?</span></label>
+                <input type="number" id="vDescGlobal" value="0" step="0.01" min="0" oninput="recalc()">
+            </div>
+            <div class="field" style="margin:0;">
+                <label>Valor FCP (R$) <span class="tip" data-tip="Fundo de Combate à Pobreza. Incide em operações com ICMS-ST ou interestaduais para alguns estados (ex: CE, MA, PA). SOMA ao total da nota (vNF). Consulte a legislação do estado destinatário para verificar a obrigatoriedade.">?</span></label>
+                <input type="number" id="vFCP" value="0" step="0.01" min="0" oninput="recalc()">
+            </div>
+        </div>
+
+        <!-- Linha 3: Despesas adicionais — Grupo B -->
+        <div class="grid-4" style="margin-top:10px;">
+            <div class="field" style="margin:0;">
+                <label>Frete (R$) <span class="tip" data-tip="Valor do frete destacado na nota. SOMA ao total da nota (vNF) e pode compor a base de cálculo do ICMS dependendo da operação e do CFOP utilizado.">?</span></label>
+                <input type="number" id="vFrete" value="0" step="0.01" min="0" oninput="recalc()">
+            </div>
+            <div class="field" style="margin:0;">
+                <label>Seguro (R$) <span class="tip" data-tip="Valor do seguro da carga repassado ao comprador. SOMA ao total da nota (vNF). Preencha somente quando o seguro for cobrado do destinatário como parte da operação comercial.">?</span></label>
+                <input type="number" id="vSeg" value="0" step="0.01" min="0" oninput="recalc()">
+            </div>
+            <div class="field" style="margin:0;">
+                <label>Outras Despesas (R$) <span class="tip tip-right" data-tip="Despesas acessórias não classificadas como frete ou seguro (ex: embalagens especiais, taxas de manuseio). SOMA ao total da nota (vNF). Informado na tag vOutro do XML.">?</span></label>
+                <input type="number" id="vOutro" value="0" step="0.01" min="0" oninput="recalc()">
+            </div>
+            <div></div>
+        </div>
+
+        <!-- Painel de tributos calculados — somente leitura -->
+        <div class="trib-panel">
+            <div class="trib-panel-title">Tributação Global Calculada (Conferência)</div>
+            <div class="trib-grid">
+                <div class="trib-item">
+                    <span class="trib-label">Base de Cálc. ICMS</span>
+                    <span class="trib-val" id="dispBCICMS">0,00</span>
+                </div>
+                <div class="trib-item">
+                    <span class="trib-label">Valor do ICMS</span>
+                    <span class="trib-val" id="dispVICMS">0,00</span>
+                </div>
+                <div class="trib-item">
+                    <span class="trib-label">Base de Cálc. ICMS ST</span>
+                    <span class="trib-val" id="dispBCST">0,00</span>
+                </div>
+                <div class="trib-item">
+                    <span class="trib-label">Valor ICMS Subst.</span>
+                    <span class="trib-val" id="dispVST">0,00</span>
+                </div>
+                <div class="trib-item">
+                    <span class="trib-label">Valor Total IPI</span>
+                    <span class="trib-val" id="dispVIPI">0,00</span>
+                </div>
+                <div class="trib-item">
+                    <span class="trib-label">Valor do PIS</span>
+                    <span class="trib-val" id="dispVPIS">0,00</span>
+                </div>
+                <div class="trib-item">
+                    <span class="trib-label">Valor da COFINS</span>
+                    <span class="trib-val" id="dispVCOFINS">0,00</span>
+                </div>
+                <div class="trib-item">
+                    <span class="trib-label">V. Tot. Trib. (Lei Transp.)</span>
+                    <span class="trib-val" id="dispVTotTrib" style="color:var(--orange);">0,00</span>
+                </div>
             </div>
         </div>
     </div>
@@ -264,8 +340,24 @@
 <!-- ACTION BAR STICKY -->
 <div class="action-bar">
     <div class="action-bar-total">
-        <span class="action-bar-label">Total da Nota</span>
-        <span class="action-bar-value">R$ <span id="resTotalNota">0,00</span></span>
+        <div class="action-bar-breakdown">
+            <div class="breakdown-item">
+                <span class="breakdown-label">Subtotal (vProd)</span>
+                <span class="breakdown-val" id="resSubtotal">0,00</span>
+            </div>
+            <div class="breakdown-item breakdown-neg">
+                <span class="breakdown-label">(-) Descontos</span>
+                <span class="breakdown-val" id="resDesconto">0,00</span>
+            </div>
+            <div class="breakdown-item breakdown-pos">
+                <span class="breakdown-label">(+) Acréscimos</span>
+                <span class="breakdown-val" id="resAcrescimos">0,00</span>
+            </div>
+        </div>
+        <div>
+            <span class="action-bar-label">V. Total da Nota (vNF)</span>
+            <span class="action-bar-value">R$ <span id="resTotalNota">0,00</span></span>
+        </div>
     </div>
     <div class="action-bar-buttons">
         <button class="btn btn-ghost" onclick="gerarXMLCompleto()">
