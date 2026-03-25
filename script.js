@@ -1,8 +1,34 @@
+// ==========================================
+// CONFIGURAÇÕES DA API (NUVEM FISCAL)
+// ==========================================
+const CREDENCIAIS = {
+    client_id: 'SEU_CLIENT_ID_AQUI',         // Cole seu Client ID aqui
+    client_secret: 'SEU_CLIENT_SECRET_AQUI'  // Cole seu Client Secret aqui
+};
+const API_BASE = "https://api.nuvemfiscal.com.br";
+
+// ==========================================
+// INICIALIZAÇÃO E EVENTOS
+// ==========================================
 window.onload = () => {
     document.getElementById('dhEmi').value = new Date().toISOString().slice(0,16);
     addProduto();
+
+    // Listener para mostrar/esconder o campo de Chave Referenciada
+    const selectPerfil = document.getElementById('perfilNota');
+    if(selectPerfil) {
+        selectPerfil.addEventListener('change', (e) => {
+            const divRef = document.getElementById('divRefNFe');
+            if(divRef) {
+                divRef.style.display = e.target.value === 'DEVOLUCAO' ? 'block' : 'none';
+            }
+        });
+    }
 };
-//
+
+// ==========================================
+// FUNÇÕES UTILITÁRIAS
+// ==========================================
 function clean(v) { return v ? v.replace(/\D/g, '') : ""; }
 function getV(id) { return (document.getElementById(id) || {value: ""}).value; }
 
@@ -10,6 +36,9 @@ function numAleatorio(min, max) {
     return Math.floor(Math.random() * (max - min + 1) + min);
 }
 
+// ==========================================
+// LÓGICA DE PRODUTOS E CÁLCULOS
+// ==========================================
 function addProduto() {
     const container = document.getElementById('listaProdutos');
     const id = Date.now();
@@ -53,6 +82,9 @@ function recalc() {
     return { prodT, icmsT, pisT, cofT, stT, vNF };
 }
 
+// ==========================================
+// GERAÇÃO DO XML
+// ==========================================
 function gerarXML() {
     const r = recalc();
     const perfil = getV('perfilNota');
@@ -61,17 +93,24 @@ function gerarXML() {
     const chave = "422401" + clean(getV('cnpjEmit')).padStart(14,'0') + "55001" + nNF.toString().padStart(9,'0') + "1" + cNF.toString().slice(0,8);
     const dh = getV('dhEmi') + ":00-03:00";
     
-    // --- LÓGICA DINÂMICA DE OPERAÇÃO ---
+    // --- LÓGICA DINÂMICA DE OPERAÇÃO E DEVOLUÇÃO ---
     let natOp = "VENDA";
     let finNFe = "1";
-    let cfopBase = "5102"; // CFOP padrão de Venda
+    let cfopBase = "5102"; 
+    let nfrefXml = ""; // Variável para a tag de nota referenciada
 
     if (perfil === "DEVOLUCAO") {
         natOp = "DEVOLUCAO DE MERCADORIA";
-        finNFe = "4";      // Regra da SEFAZ para finalidade de devolução
-        cfopBase = "5202"; // CFOP padrão de devolução
+        finNFe = "4";      
+        cfopBase = "5202"; 
+        
+        // Pega a chave referenciada do HTML (se existir)
+        const chaveRef = clean(getV('refNFe'));
+        if (chaveRef.length === 44) {
+            nfrefXml = `<NFref><refNFe>${chaveRef}</refNFe></NFref>`;
+        }
     }
-    // -----------------------------------
+    // -----------------------------------------------
 
     let det = "";
     document.querySelectorAll(".produto-item").forEach((item, i) => {
@@ -92,7 +131,6 @@ function gerarXML() {
                 <PIS><PISNT><CST>07</CST></PISNT></PIS>
                 <COFINS><COFINSNT><CST>07</CST></COFINSNT></COFINS>`;
         } else {
-            // Perfil Isento/Produção ou Devolução (CST 40 / CST 08)
             impostoXml = `
                 <ICMS><ICMS40><orig>0</orig><CST>40</CST></ICMS40></ICMS>
                 <PIS><PISNT><CST>08</CST></PISNT></PIS>
@@ -116,6 +154,7 @@ function gerarXML() {
         <infNFe Id="NFe${chave}" versao="4.00">
             <ide>
                 <cUF>42</cUF><cNF>${cNF}</cNF><natOp>${natOp}</natOp><mod>55</mod><serie>1</serie><nNF>${nNF}</nNF><dhEmi>${dh}</dhEmi><tpNF>1</tpNF><idDest>1</idDest><tpAmb>1</tpAmb><finNFe>${finNFe}</finNFe><procEmi>0</procEmi><verProc>6.3</verProc>
+                ${nfrefXml}
             </ide>
             <emit><CNPJ>${clean(getV('cnpjEmit'))}</CNPJ><xNome>${getV('xNomeEmit')}</xNome><enderEmit><UF>SP</UF></enderEmit></emit>
             <dest><CNPJ>${clean(getV('cnpjDest'))}</CNPJ><xNome>${getV('xNomeDest')}</xNome><enderDest><UF>SP</UF></enderDest></dest>
@@ -142,6 +181,10 @@ function gerarXML() {
     document.getElementById('xml-output').value = xml.trim();
     document.getElementById('xml-output').style.display = 'block';
     document.getElementById('btnDownload').style.display = 'block';
+    
+    // Mostra o botão de transmitir se existir no HTML
+    const btnTransmitir = document.getElementById('btnTransmitir');
+    if(btnTransmitir) btnTransmitir.style.display = 'block';
 }
 
 function baixarXML() {
@@ -150,4 +193,58 @@ function baixarXML() {
     a.href = URL.createObjectURL(b); 
     a.download = `nfe_${getV('perfilNota')}_${numAleatorio(1,999)}.xml`; 
     a.click();
+}
+
+// ==========================================
+// INTEGRAÇÃO API - NUVEM FISCAL
+// ==========================================
+async function obterToken() {
+    const resp = await fetch(`${API_BASE}/oauth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            grant_type: 'client_credentials',
+            client_id: CREDENCIAIS.client_id,
+            client_secret: CREDENCIAIS.client_secret,
+            scope: 'nfe'
+        })
+    });
+    const data = await resp.json();
+    return data.access_token;
+}
+
+async function transmitirParaSefaz() {
+    const xmlContent = document.getElementById('xml-output').value;
+    if (!xmlContent) return alert("Gere o XML primeiro!");
+
+    const btn = document.getElementById('btnTransmitir');
+    btn.innerText = "⏳ TRANSMITINDO...";
+    btn.disabled = true;
+
+    try {
+        const token = await obterToken();
+        const resp = await fetch(`${API_BASE}/nfe`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/xml'
+            },
+            body: xmlContent
+        });
+
+        const resultado = await resp.json();
+        console.log("Retorno Nuvem Fiscal:", resultado);
+        
+        if (resp.ok) {
+            alert(`✅ Sucesso! Status SEFAZ: ${resultado.status}`);
+        } else {
+            alert(`❌ Erro: ${resultado.error ? resultado.error.message : 'Falha na requisição'}`);
+        }
+    } catch (err) {
+        console.error("Erro no fetch:", err);
+        alert("Erro na comunicação com a API da Nuvem Fiscal.");
+    } finally {
+        btn.innerText = "🚀 TRANSMITIR PARA SEFAZ (HOMOLOGAÇÃO)";
+        btn.disabled = false;
+    }
 }
