@@ -13,14 +13,15 @@ RUN sed -i 's/AllowOverride None/AllowOverride All/g' /etc/apache2/apache2.conf
 # Copia TODO o conteúdo da sua pasta para o servidor
 COPY . /var/www/html/
 
-# Copia e prepara o entrypoint
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+# Habilita variáveis de ambiente do sistema no PHP via Apache
+RUN echo 'PassEnv NUVEMFISCAL_CLIENT_ID' >> /etc/apache2/apache2.conf \
+ && echo 'PassEnv NUVEMFISCAL_CLIENT_SECRET' >> /etc/apache2/apache2.conf
+
+# Gera config.php que lê as credenciais das variáveis de ambiente em runtime
+RUN printf '<?php\nreturn [\n    "client_id"     => getenv("NUVEMFISCAL_CLIENT_ID"),\n    "client_secret" => getenv("NUVEMFISCAL_CLIENT_SECRET"),\n    "api_base"      => "https://api.sandbox.nuvemfiscal.com.br"\n];\n' > /var/www/html/config.php
 
 # Dá permissão total para a pasta
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
 
 EXPOSE 80
-
-ENTRYPOINT ["docker-entrypoint.sh"]
