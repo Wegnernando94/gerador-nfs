@@ -192,6 +192,7 @@ function baixarXML() {
 // ==========================================
 // INTEGRAÇÃO API - NUVEM FISCAL
 // ==========================================
+const AUTH_URL = "https://auth.nuvemfiscal.com.br";
 async function obterToken() {
     const clientId = getV('clientId');
     const clientSecret = getV('clientSecret');
@@ -200,7 +201,7 @@ async function obterToken() {
         throw new Error("O Client ID e o Client Secret devem ser preenchidos!");
     }
 
-    const resp = await fetch(`${API_BASE}/oauth/token`, {
+    const resp = await fetch(`${AUTH_URL}/oauth/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({

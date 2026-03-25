@@ -1,0 +1,10 @@
+{
+    "name": "fernando-henrique-wegn/gerador-nfs",
+    "authors": [
+        {
+            "name": "Fernando Wegner",
+            "email": "wegnernando@gmail.com"
+        }
+    ],
+    "require": {}
+}
