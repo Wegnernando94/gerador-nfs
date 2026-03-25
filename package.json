@@ -1,0 +1,7 @@
+{
+    "name": "gerador-nfs/backend-php",
+    "description": "Projeto PHP para o Render",
+    "require": {
+        "php": ">=8.1"
+    }
+}
