@@ -193,12 +193,9 @@ function baixarXML() {
 // INTEGRAÇÃO API - NUVEM FISCAL
 // ==========================================
 async function obterToken() {
-    // Lê as credenciais apenas no momento em que precisa delas
-    const clientId = document.getElementById('apiClientId')?.value;
-    const clientSecret = document.getElementById('apiClientSecret')?.value;
-
-    if (!clientId || !clientSecret) {
-        throw new Error("Credenciais da API não preenchidas!");
+    // Como você está usando o config.js, ele vai puxar a variável CREDENCIAIS de lá!
+    if (typeof CREDENCIAIS === 'undefined' || !CREDENCIAIS.client_id) {
+        throw new Error("As credenciais não foram encontradas no arquivo config.js!");
     }
 
     const resp = await fetch(`${API_BASE}/oauth/token`, {
@@ -206,14 +203,14 @@ async function obterToken() {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
             grant_type: 'client_credentials',
-            client_id: clientId,
-            client_secret: clientSecret,
+            client_id: CREDENCIAIS.client_id,
+            client_secret: CREDENCIAIS.client_secret,
             scope: 'nfe'
         })
     });
     
     if (!resp.ok) {
-        throw new Error("Falha ao autenticar na Nuvem Fiscal. Verifique suas credenciais.");
+        throw new Error("Falha ao autenticar na Nuvem Fiscal. Verifique se o Client ID e Secret estão corretos.");
     }
 
     const data = await resp.json();
