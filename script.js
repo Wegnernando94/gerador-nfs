@@ -1209,8 +1209,16 @@ const UF_PARA_CUF = {
 async function carregarDropdownsEmpresas() {
     try {
         const resp = await fetch('listar_empresas.php');
+        if (!resp.ok) {
+            const txt = await resp.text();
+            console.error('listar_empresas.php retornou HTTP', resp.status, txt);
+            return;
+        }
         const res = await resp.json();
-        console.log('[DEBUG empresas] primeiro registro:', JSON.stringify(res.data?.[0], null, 2));
+        if (res.error || !res.data) {
+            console.error('Erro da API de empresas:', res.error || res);
+            return;
+        }
         let opt = res.data.map(e => {
             const end = e.endereco || {};
             return `<option value="${e.cpf_cnpj}"
@@ -1226,7 +1234,7 @@ async function carregarDropdownsEmpresas() {
         }).join('');
         document.getElementById('dropEmit').innerHTML = '<option value="">Selecione...</option>' + opt;
         document.getElementById('dropDest').innerHTML = '<option value="">Selecione...</option>' + opt;
-    } catch(e) { console.error("Erro ao carregar empresas"); }
+    } catch(e) { console.error("Erro ao carregar empresas", e); }
 }
 
 function selecionarEmpresa(sel, tipo) {
