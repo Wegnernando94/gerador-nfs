@@ -2,276 +2,374 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Enterprise NF-e Studio | QA Master v60</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emissor Sandbox NF-e</title>
     <link rel="stylesheet" href="style.css">
-    <style>
-        :root { --primary: #6200ee; --secondary: #03dac6; --bg: #121212; --card: #1e1e1e; --text: #e1e1e1; }
-        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; }
-        .container { max-width: 1200px; margin: auto; }
-        .card { background: var(--card); border-radius: 8px; padding: 20px; margin-bottom: 20px; border: 1px solid #333; }
-
-        /* MODAL CONSULTA */
-        #modalConsulta { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:1000; overflow-y:auto; padding:20px; }
-        #modalConsulta .modal-box { background:var(--card); border-radius:8px; max-width:1100px; margin:auto; padding:24px; border:1px solid #444; }
-        #modalConsulta h2 { margin:0 0 16px; border-bottom:2px solid var(--primary); padding-bottom:8px; }
-        .filtros-consulta { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:16px; }
-        .filtros-consulta select, .filtros-consulta input { background:#2c2c2c; border:1px solid #555; color:#fff; padding:7px 10px; border-radius:4px; }
-        #tabelaNfes { width:100%; border-collapse:collapse; font-size:0.85em; }
-        #tabelaNfes th { background:#2a2a2a; color:var(--secondary); padding:10px 8px; text-align:left; border-bottom:2px solid #444; }
-        #tabelaNfes td { padding:9px 8px; border-bottom:1px solid #2e2e2e; vertical-align:middle; }
-        #tabelaNfes tr:hover td { background:#252525; }
-        .badge { display:inline-block; padding:2px 8px; border-radius:12px; font-size:0.78em; font-weight:bold; }
-        .badge-autorizado { background:#1b5e20; color:#a5d6a7; }
-        .badge-rejeitado  { background:#b71c1c; color:#ef9a9a; }
-        .badge-pendente   { background:#e65100; color:#ffcc80; }
-        .badge-cancelado  { background:#37474f; color:#b0bec5; }
-        .badge-outro      { background:#33333a; color:#ccc; }
-        .paginacao { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; align-items:center; }
-        #danfeViewer { margin-top:12px; }
-        #danfeViewer iframe { width:100%; height:650px; border:1px solid #444; border-radius:4px; }
-        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); padding-bottom: 10px; margin-bottom: 20px; }
-        input, select { background: #2c2c2c; border: 1px solid #444; color: white; padding: 8px; border-radius: 4px; width: 100%; box-sizing: border-box; }
-        .btn { cursor: pointer; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; transition: 0.3s; }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-success { background: #2e7d32; color: white; }
-        .btn-danger { background: #c62828; color: white; }
-        .produto-item { border-left: 4px solid var(--primary); background: #252525; padding: 15px; margin-bottom: 10px; border-radius: 0 8px 8px 0; }
-        .impostos-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; border-top: 1px solid #444; padding-top: 10px; font-size: 0.8em; }
-        #xml-output { width: 100%; height: 300px; background: #000; color: #0f0; font-family: monospace; margin-top: 20px; padding: 10px; }
-    </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🛡️ NF-e QA Enterprise Studio</h1>
-            <div style="display:flex; gap:8px;">
-                <button class="btn btn-primary" onclick="abrirConsulta()">Consultar Notas</button>
-                <button class="btn btn-danger" onclick="location.reload()">REINICIAR</button>
-            </div>
-        </div>
 
-        <div class="grid-3">
-            <div class="card">
-                <h3>1. Configuração da Nota</h3>
-                <label>Finalidade (Cenário)</label>
+<!-- TOPBAR -->
+<header class="topbar">
+    <div class="topbar-brand">
+        <div class="topbar-logo">📄</div>
+        <div>
+            <div class="topbar-title">Emissor Sandbox NF-e</div>
+            <div class="topbar-subtitle">Ambiente de homologação — SEFAZ</div>
+        </div>
+        <span class="badge-env">SANDBOX</span>
+    </div>
+    <div class="topbar-actions">
+        <button class="btn btn-ghost" onclick="abrirConsulta()">
+            📋 Consultar Notas
+        </button>
+        <button class="btn btn-ghost btn-icon" title="Reiniciar formulário" onclick="location.reload()">↺</button>
+    </div>
+</header>
+
+<div class="app-container">
+
+    <!-- LINHA 1: Configuração + Emitente + Destinatário -->
+    <div class="main-grid">
+
+        <!-- CARD 1 — Configuração -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-header-icon icon-blue"><span>⚙️</span></div>
+                <div class="card-header-text">
+                    <div class="card-title">Configuração</div>
+                    <div class="card-desc">Finalidade e numeração</div>
+                </div>
+                <span class="step-badge">1</span>
+            </div>
+
+            <div class="field">
+                <label>Finalidade da NF-e</label>
                 <select id="finNFe" onchange="toggleDevolucao()">
-                    <option value="1">1 - NF-e Normal (Venda/Saída)</option>
-                    <option value="4">4 - Devolução de Mercadoria</option>
-                    <option value="2">2 - NF-e Complementar</option>
+                    <option value="1">NF-e Normal — Venda / Saída</option>
+                    <option value="4">Devolução de Mercadoria</option>
+                    <option value="2">NF-e Complementar</option>
                 </select>
-                
-                <div id="campoRef" style="display:none; margin-top:10px; border-left: 2px solid #ff9800; padding-left:10px;">
-                    <label style="color:#ff9800">Chave de Acesso Referenciada (44 dígitos)</label>
-                    <div style="display:flex; gap:8px; align-items:center;">
-                        <input type="text" id="refNFe" placeholder="Cole ou digite os 44 dígitos" maxlength="44" inputmode="numeric">
-                        <button class="btn btn-primary" style="white-space:nowrap;" onclick="consultarNotaRef()">Consultar</button>
-                    </div>
+            </div>
 
-                    <div id="painelNotaRef" style="display:none; margin-top:12px; background:#1a1a1a; border-radius:6px; padding:12px; font-size:0.85em;">
-                        <div style="display:grid; grid-template-columns: auto 1fr; gap:4px 12px;">
-                            <span style="color:#aaa;">Status</span>      <span id="refStatus" style="font-weight:bold;"></span>
-                            <span style="color:#aaa;">Emissão</span>     <span id="refDataEmissao"></span>
-                            <span style="color:#aaa;">Emitente</span>    <span id="refEmitente"></span>
-                            <span style="color:#aaa;">Destinatário</span><span id="refDestinatario"></span>
-                            <span style="color:#aaa;">Valor Total</span> <span id="refValor"></span>
-                            <span style="color:#aaa;">Itens</span>       <span id="refItens"></span>
-                        </div>
-                        <button id="btnRealizarDevolucao" class="btn btn-danger" style="margin-top:12px; width:100%;" onclick="confirmarDevolucao()">
-                            Realizar Nota de Devolução
-                        </button>
+            <!-- PAINEL DEVOLUÇÃO -->
+            <div id="campoRef" style="display:none;">
+                <div style="background:var(--orange-dim); border:1px solid var(--orange); border-radius:var(--radius); padding:14px; margin-bottom:12px;">
+                    <div style="font-size:11px; font-weight:600; color:var(--orange); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                        🔗 Nota Referenciada
                     </div>
-
-                    <div id="loadingRef" style="display:none; color:#aaa; margin-top:8px; font-size:0.85em;">Consultando nota...</div>
-                    <div id="erroRef" style="display:none; color:#f44336; margin-top:8px; font-size:0.85em;"></div>
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="refNFe" placeholder="Cole a chave de acesso (44 dígitos)" maxlength="44" inputmode="numeric" style="font-family:'JetBrains Mono',monospace; font-size:11px;">
+                        <button class="btn btn-warning" style="white-space:nowrap; flex-shrink:0;" onclick="consultarNotaRef()">Consultar</button>
+                    </div>
+                    <div id="loadingRef" style="display:none; color:var(--text2); margin-top:8px; font-size:11px; display:flex; align-items:center; gap:6px;">
+                        <span class="spinner"></span> Consultando nota...
+                    </div>
+                    <div id="erroRef" style="display:none; color:var(--red); margin-top:8px; font-size:11px;"></div>
                 </div>
 
-                <div style="display:flex; gap:10px; margin-top:10px;">
-                    <div><label>Número</label><input type="number" id="nNF" value="100"></div>
-                    <div><label>Série</label><input type="number" id="serie" value="1"></div>
+                <div id="painelNotaRef" style="display:none;" class="ref-card">
+                    <div class="ref-card-grid">
+                        <span class="ref-label">Status</span>      <span class="ref-value"><span id="refStatus" style="font-weight:600;"></span></span>
+                        <span class="ref-label">Emissão</span>     <span class="ref-value" id="refDataEmissao"></span>
+                        <span class="ref-label">Emitente</span>    <span class="ref-value" id="refEmitente"></span>
+                        <span class="ref-label">Destinatário</span><span class="ref-value" id="refDestinatario"></span>
+                        <span class="ref-label">Valor</span>       <span class="ref-value" id="refValor" style="color:var(--green); font-weight:600;"></span>
+                        <span class="ref-label">Itens</span>       <span class="ref-value" id="refItens" style="font-size:11px;"></span>
+                    </div>
+                    <button id="btnRealizarDevolucao" class="btn btn-danger" style="width:100%; margin-top:12px;" onclick="confirmarDevolucao()">
+                        ↩ Emitir Nota de Devolução
+                    </button>
                 </div>
             </div>
 
-            <div class="card">
-                <h3>2. Emitente</h3>
+            <div class="grid-2" style="margin-top:4px;">
+                <div class="field">
+                    <label>Número (nNF)</label>
+                    <input type="number" id="nNF" value="1" min="1">
+                </div>
+                <div class="field">
+                    <label>Série</label>
+                    <input type="number" id="serie" value="1" min="1">
+                </div>
+            </div>
+        </div>
+
+        <!-- CARD 2 — Emitente -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-header-icon icon-green"><span>🏢</span></div>
+                <div class="card-header-text">
+                    <div class="card-title">Emitente</div>
+                    <div class="card-desc">Empresa que emite a nota</div>
+                </div>
+                <span class="step-badge">2</span>
+            </div>
+
+            <div class="field">
                 <label>Selecionar Empresa</label>
-                <select id="dropEmit" onchange="selecionarEmpresa(this, 'emit')"><option>Carregando...</option></select>
-                <label>Razão Social</label><input type="text" id="xNomeEmit">
-                <label>CNPJ</label><input type="text" id="cnpjEmit">
-                <input type="hidden" id="ufEmit">
-                <input type="hidden" id="cMunEmit">
-                <input type="hidden" id="xMunEmit">
-                <input type="hidden" id="xLgrEmit">
-                <input type="hidden" id="nroEmit">
-                <input type="hidden" id="xBairroEmit">
-                <input type="hidden" id="cepEmit">
+                <select id="dropEmit" onchange="selecionarEmpresa(this, 'emit')">
+                    <option value="">⏳ Carregando empresas...</option>
+                </select>
             </div>
-
-            <div class="card">
-                <h3>3. Destinatário</h3>
-                <label>Preenchimento Rápido</label>
-                <select id="dropDest" onchange="selecionarEmpresa(this, 'dest')"><option>Carregando...</option></select>
-                <label>Razão Social</label><input type="text" id="xNomeDest">
-                <label>CNPJ</label><input type="text" id="cnpjDest">
-                <input type="hidden" id="ufDest">
-                <input type="hidden" id="cMunDest">
-                <input type="hidden" id="xMunDest">
-                <input type="hidden" id="xLgrDest">
-                <input type="hidden" id="nroDest">
-                <input type="hidden" id="xBairroDest">
-                <input type="hidden" id="cepDest">
+            <div class="field">
+                <label>Razão Social</label>
+                <input type="text" id="xNomeEmit" placeholder="Nome da empresa">
             </div>
+            <div class="field">
+                <label>CNPJ</label>
+                <input type="text" id="cnpjEmit" placeholder="00.000.000/0000-00">
+            </div>
+            <input type="hidden" id="ufEmit">
+            <input type="hidden" id="cMunEmit">
+            <input type="hidden" id="xMunEmit">
+            <input type="hidden" id="xLgrEmit">
+            <input type="hidden" id="nroEmit">
+            <input type="hidden" id="xBairroEmit">
+            <input type="hidden" id="cepEmit">
         </div>
 
+        <!-- CARD 3 — Destinatário -->
         <div class="card">
-            <h3>4. Tributação Global da Nota</h3>
-            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap:15px; align-items:end;">
-                <div>
-                    <label>Regime Tributário</label>
-                    <select id="regimeTrib" onchange="atualizarCSTpadrao()">
-                        <option value="normal">Regime Normal</option>
-                        <option value="simples">Simples Nacional</option>
-                    </select>
+            <div class="card-header">
+                <div class="card-header-icon icon-purple"><span>👤</span></div>
+                <div class="card-header-text">
+                    <div class="card-title">Destinatário</div>
+                    <div class="card-desc">Empresa que recebe a nota</div>
                 </div>
-                <div>
-                    <label id="labelCodTrib">CST ICMS</label>
-                    <select id="cstGlobal" onchange="toggleAliqICMSGlobal()">
-                    </select>
-                </div>
-                <div id="campoAliqICMS">
-                    <label>% ICMS</label>
-                    <input type="number" id="pICMSGlobal" value="18.00"
-                        title="Alíquota interna. CFOP 6xxx aplica 7/12% automático. CFOP 7xxx = 0.">
-                </div>
-                <div>
-                    <label>% PIS</label>
-                    <input type="number" id="pPISGlobal" value="1.65">
-                </div>
-                <div>
-                    <label>% COFINS</label>
-                    <input type="number" id="pCOFINSGlobal" value="7.60">
-                </div>
+                <span class="step-badge">3</span>
             </div>
-        </div>
 
-        <div class="card">
-            <h3>5. Itens da Nota</h3>
-            <button class="btn btn-success" onclick="addProduto()">+ ADICIONAR ITEM</button>
-            <div id="listaProdutos" style="margin-top:15px;"></div>
+            <div class="field">
+                <label>Selecionar Empresa</label>
+                <select id="dropDest" onchange="selecionarEmpresa(this, 'dest')">
+                    <option value="">⏳ Carregando empresas...</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Razão Social</label>
+                <input type="text" id="xNomeDest" placeholder="Nome da empresa">
+            </div>
+            <div class="field">
+                <label>CNPJ</label>
+                <input type="text" id="cnpjDest" placeholder="00.000.000/0000-00">
+            </div>
+            <input type="hidden" id="ufDest">
+            <input type="hidden" id="cMunDest">
+            <input type="hidden" id="xMunDest">
+            <input type="hidden" id="xLgrDest">
+            <input type="hidden" id="nroDest">
+            <input type="hidden" id="xBairroDest">
+            <input type="hidden" id="cepDest">
         </div>
-
-        <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
-            <div style="font-size: 1.5em; font-weight: bold;">TOTAL NOTA: R$ <span id="resTotalNota">0.00</span></div>
-            <div style="display: flex; gap: 10px;">
-                <button class="btn btn-primary" onclick="gerarXMLCompleto()">🔍 GERAR CONFERÊNCIA</button>
-                <button id="btnTransmitir" class="btn btn-success" onclick="transmitirParaSefaz()">🚀 TRANSMITIR SEFAZ</button>
-            </div>
-        </div>
-
-        <div id="painelResultado" style="display:none;" class="card">
-            <h3>Resultado da Transmissão</h3>
-            <div style="display:grid; grid-template-columns: auto 1fr; gap:6px 16px; align-items:center; font-size:0.95em;">
-                <span style="color:#aaa;">Status</span>       <span id="resStatus" style="font-weight:bold;"></span>
-                <span style="color:#aaa;">ID</span>           <span id="resId" style="font-family:monospace; font-size:0.85em;"></span>
-                <span style="color:#aaa;">Série / Número</span><span id="resSerieNum"></span>
-                <span style="color:#aaa;">Chave de Acesso</span><span id="resChave" style="font-family:monospace; font-size:0.8em; word-break:break-all;"></span>
-                <span style="color:#aaa;">Motivo</span>       <span id="resMotivo"></span>
-            </div>
-            <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
-                <button id="btnDanfe" class="btn btn-primary" onclick="abrirDanfe()" style="display:none;">
-                    Visualizar DANFE (PDF)
-                </button>
-                <button id="btnDanfeDown" class="btn btn-success" onclick="baixarDanfe()" style="display:none;">
-                    Baixar DANFE
-                </button>
-                <button id="btnXmlDown" class="btn btn-warning" onclick="baixarXml()" style="display:none;">
-                    Baixar XML
-                </button>
-            </div>
-            <div id="iframeDanfe" style="margin-top:16px; display:none;">
-                <iframe id="frameNota" src="" style="width:100%; height:700px; border:1px solid #444; border-radius:4px;"></iframe>
-            </div>
-        </div>
-
-        <textarea id="xml-output" placeholder="O XML completo para conferência aparecerá aqui..."></textarea>
     </div>
-    <!-- MODAL CONSULTA DE NOTAS -->
-    <div id="modalConsulta">
-        <div class="modal-box">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <h2 style="margin:0; border:none; padding:0;">Notas Fiscais Emitidas</h2>
-                <button class="btn btn-danger" onclick="fecharConsulta()">✕ Fechar</button>
+
+    <!-- CARD 4 — Tributação -->
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+            <div class="card-header-icon icon-orange"><span>🧾</span></div>
+            <div class="card-header-text">
+                <div class="card-title">Tributação Global</div>
+                <div class="card-desc">Aplicada a todos os itens da nota</div>
             </div>
-
-            <div class="filtros-consulta">
-                <div style="flex:2; min-width:200px;">
-                    <label style="display:block; font-size:0.8em; color:#aaa; margin-bottom:4px;">Empresa Emitente</label>
-                    <select id="filtroEmpresa" onchange="buscarNotas(0)" style="width:100%;">
-                        <option value="">Carregando empresas...</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="display:block; font-size:0.8em; color:#aaa; margin-bottom:4px;">Status</label>
-                    <select id="filtroStatus" onchange="buscarNotas(0)">
-                        <option value="">Todos</option>
-                        <option value="autorizado">Autorizado</option>
-                        <option value="rejeitado">Rejeitado</option>
-                        <option value="pendente">Pendente</option>
-                        <option value="cancelado">Cancelado</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="display:block; font-size:0.8em; color:#aaa; margin-bottom:4px;">Itens por página</label>
-                    <select id="filtroTop" onchange="buscarNotas(0)">
-                        <option value="20">20</option>
-                        <option value="50" selected>50</option>
-                        <option value="100">100</option>
-                    </select>
-                </div>
-                <button class="btn btn-primary" onclick="buscarNotas(0)">Atualizar</button>
+            <span class="step-badge">4</span>
+        </div>
+        <div class="grid-5">
+            <div class="field">
+                <label>Regime Tributário</label>
+                <select id="regimeTrib" onchange="atualizarCSTpadrao()">
+                    <option value="normal">Regime Normal</option>
+                    <option value="simples">Simples Nacional</option>
+                </select>
             </div>
-
-            <div id="loadingNotas" style="display:none; text-align:center; padding:20px; color:#aaa;">Carregando...</div>
-
-            <div id="wrapTabela" style="overflow-x:auto;">
-                <table id="tabelaNfes">
-                    <thead>
-                        <tr>
-                            <th>Emissão</th>
-                            <th>Série/Nº</th>
-                            <th>Emitente</th>
-                            <th>Destinatário</th>
-                            <th>Valor</th>
-                            <th>Status</th>
-                            <th>Chave</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="corpoTabela">
-                        <tr><td colspan="8" style="text-align:center; color:#666; padding:20px;">Clique em "Buscar" para carregar as notas.</td></tr>
-                    </tbody>
-                </table>
+            <div class="field">
+                <label id="labelCodTrib">CST ICMS</label>
+                <select id="cstGlobal" onchange="toggleAliqICMSGlobal()"></select>
             </div>
-
-            <div class="paginacao">
-                <span id="infoPaginacao" style="color:#aaa; font-size:0.85em;"></span>
-                <button class="btn btn-primary" id="btnAnterior" onclick="paginarNotas(-1)" disabled>← Anterior</button>
-                <button class="btn btn-primary" id="btnProximo"  onclick="paginarNotas(1)">Próximo →</button>
+            <div class="field" id="campoAliqICMS">
+                <label>% ICMS</label>
+                <input type="number" id="pICMSGlobal" value="18.00" title="Alíquota interna. CFOP 6xxx aplica 7/12% automático.">
             </div>
-
-            <div id="danfeViewer" style="display:none;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <strong id="danfeTitulo">DANFE</strong>
-                    <div style="display:flex; gap:8px; align-items:center;">
-                        <button class="btn btn-warning" style="padding:4px 10px;font-size:0.85em;" onclick="baixarXmlViewer()">Baixar XML</button>
-                        <button class="btn btn-danger" style="padding:4px 10px;" onclick="fecharDanfeViewer()">✕</button>
-                    </div>
-                </div>
-                <iframe id="iframeConsulta" src=""></iframe>
+            <div class="field">
+                <label>% PIS</label>
+                <input type="number" id="pPISGlobal" value="1.65">
+            </div>
+            <div class="field">
+                <label>% COFINS</label>
+                <input type="number" id="pCOFINSGlobal" value="7.60">
             </div>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <!-- CARD 5 — Itens -->
+    <div class="card" style="margin-bottom:80px;">
+        <div class="card-header">
+            <div class="card-header-icon icon-blue"><span>📦</span></div>
+            <div class="card-header-text">
+                <div class="card-title">Itens da Nota</div>
+                <div class="card-desc">Produtos / serviços a faturar</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span class="step-badge">5</span>
+                <button class="btn btn-success" onclick="addProduto()" style="font-size:11px; padding:5px 12px;">
+                    + Adicionar Item
+                </button>
+            </div>
+        </div>
+        <div id="listaProdutos"></div>
+    </div>
+
+    <!-- RESULTADO DA TRANSMISSÃO -->
+    <div id="painelResultado" class="result-panel">
+        <div class="result-header">
+            <div class="result-icon" id="resIcone">✅</div>
+            <div>
+                <div class="result-title" id="resStatus"></div>
+                <div class="result-subtitle" id="resSubtitle"></div>
+            </div>
+        </div>
+        <div class="result-grid">
+            <span class="result-label">ID da Nota</span>
+            <span class="result-value mono" id="resId"></span>
+
+            <span class="result-label">Série / Número</span>
+            <span class="result-value" id="resSerieNum"></span>
+
+            <span class="result-label">Chave de Acesso</span>
+            <span class="result-value mono" id="resChave"></span>
+
+            <span class="result-label">Motivo</span>
+            <span class="result-value" id="resMotivo"></span>
+        </div>
+        <div class="result-actions">
+            <button id="btnDanfe" class="btn btn-primary" onclick="abrirDanfe()" style="display:none;">
+                👁 Visualizar DANFE
+            </button>
+            <button id="btnDanfeDown" class="btn btn-ghost" onclick="baixarDanfe()" style="display:none;">
+                ⬇ Baixar PDF
+            </button>
+            <button id="btnXmlDown" class="btn btn-ghost" onclick="baixarXml()" style="display:none;">
+                📄 Baixar XML
+            </button>
+        </div>
+        <div id="iframeDanfe" style="margin-top:16px; display:none;">
+            <iframe id="frameNota" src="" style="width:100%; height:700px; border:1px solid var(--border); border-radius:var(--radius); display:block;"></iframe>
+        </div>
+    </div>
+
+    <!-- XML CONFERÊNCIA -->
+    <textarea id="xml-output" placeholder="O XML completo para conferência aparecerá aqui..."></textarea>
+
+</div><!-- /app-container -->
+
+<!-- ACTION BAR STICKY -->
+<div class="action-bar">
+    <div class="action-bar-total">
+        <span class="action-bar-label">Total da Nota</span>
+        <span class="action-bar-value">R$ <span id="resTotalNota">0,00</span></span>
+    </div>
+    <div class="action-bar-buttons">
+        <button class="btn btn-ghost" onclick="gerarXMLCompleto()">
+            🔍 Conferir XML
+        </button>
+        <button id="btnTransmitir" class="btn btn-success btn-lg" onclick="transmitirParaSefaz()">
+            🚀 Transmitir para SEFAZ
+        </button>
+    </div>
+</div>
+
+<!-- MODAL CONSULTA DE NOTAS -->
+<div id="modalConsulta">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div>
+                <div class="modal-title">📋 Notas Fiscais Emitidas</div>
+                <div style="font-size:12px; color:var(--text2); margin-top:3px;">Histórico do ambiente de homologação</div>
+            </div>
+            <button class="btn btn-ghost" onclick="fecharConsulta()">✕ Fechar</button>
+        </div>
+
+        <div class="filtros-consulta">
+            <div class="field" style="flex:2; min-width:200px;">
+                <label>Empresa Emitente</label>
+                <select id="filtroEmpresa" onchange="buscarNotas(0)" style="width:100%;">
+                    <option value="">Selecione a empresa...</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Status</label>
+                <select id="filtroStatus" onchange="buscarNotas(0)" style="min-width:130px;">
+                    <option value="">Todos</option>
+                    <option value="autorizado">✅ Autorizado</option>
+                    <option value="rejeitado">❌ Rejeitado</option>
+                    <option value="pendente">⏳ Pendente</option>
+                    <option value="cancelado">🚫 Cancelado</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Por página</label>
+                <select id="filtroTop" onchange="buscarNotas(0)" style="min-width:80px;">
+                    <option value="20">20</option>
+                    <option value="50" selected>50</option>
+                </select>
+            </div>
+            <div style="align-self:flex-end;">
+                <button class="btn btn-primary" onclick="buscarNotas(0)">↻ Atualizar</button>
+            </div>
+        </div>
+
+        <div id="loadingNotas" style="display:none; text-align:center; padding:32px; color:var(--text2);">
+            <div class="spinner" style="width:24px; height:24px; margin:0 auto 8px;"></div>
+            Carregando notas...
+        </div>
+
+        <div class="table-wrap">
+            <table id="tabelaNfes">
+                <thead>
+                    <tr>
+                        <th>Emissão</th>
+                        <th>Série / Nº</th>
+                        <th>Emitente (CNPJ)</th>
+                        <th>Referência</th>
+                        <th>Valor</th>
+                        <th>Status</th>
+                        <th>Chave</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="corpoTabela">
+                    <tr>
+                        <td colspan="8" style="text-align:center; color:var(--text3); padding:32px;">
+                            Selecione uma empresa para carregar as notas.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="paginacao" style="margin-top:16px;">
+            <span class="paginacao-info" id="infoPaginacao"></span>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-ghost" id="btnAnterior" onclick="paginarNotas(-1)" disabled>← Anterior</button>
+                <button class="btn btn-ghost" id="btnProximo" onclick="paginarNotas(1)">Próximo →</button>
+            </div>
+        </div>
+
+        <div id="danfeViewer" style="display:none;">
+            <div class="danfe-viewer-header">
+                <strong id="danfeTitulo" style="font-size:13px;">DANFE</strong>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn btn-ghost" style="font-size:11px; padding:5px 10px;" onclick="baixarXmlViewer()">⬇ XML</button>
+                    <button class="btn btn-danger btn-icon" onclick="fecharDanfeViewer()" title="Fechar">✕</button>
+                </div>
+            </div>
+            <iframe id="iframeConsulta" src=""></iframe>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<script src="script.js"></script>
 </body>
 </html>

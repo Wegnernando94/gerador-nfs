@@ -642,12 +642,27 @@ function addProduto() {
     div.className = 'produto-item';
     div.id = `prod-${id}`;
     div.innerHTML = `
-        <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 0.5fr; gap:10px; align-items:center;">
-            <input type="text" class="xProd" placeholder="Descrição do produto" value="PRODUTO TESTE QA">
-            <input type="number" class="qtd" value="1" oninput="recalc()" placeholder="Qtd">
-            <input type="number" class="vUn" value="100.00" oninput="recalc()" placeholder="Valor unit.">
-            <input type="text" class="cfop" value="5102" list="cfop-datalist" placeholder="Buscar CFOP...">
-            <button class="btn btn-danger" onclick="document.getElementById('prod-${id}').remove(); recalc()">X</button>
+        <div class="produto-header">
+            <span class="produto-num">Item ${nItens}</span>
+            <button class="btn btn-danger btn-icon" title="Remover item" onclick="document.getElementById('prod-${id}').remove(); recalc()">✕</button>
+        </div>
+        <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1.2fr; gap:10px; align-items:end;">
+            <div class="field" style="margin:0;">
+                <label>Descrição</label>
+                <input type="text" class="xProd" placeholder="Nome do produto ou serviço" value="PRODUTO TESTE QA">
+            </div>
+            <div class="field" style="margin:0;">
+                <label>Quantidade</label>
+                <input type="number" class="qtd" value="1" oninput="recalc()" placeholder="0">
+            </div>
+            <div class="field" style="margin:0;">
+                <label>Valor Unitário (R$)</label>
+                <input type="number" class="vUn" value="100.00" oninput="recalc()" placeholder="0,00">
+            </div>
+            <div class="field" style="margin:0;">
+                <label>CFOP</label>
+                <input type="text" class="cfop" value="5102" list="cfop-datalist" placeholder="Ex: 5102">
+            </div>
         </div>
     `;
     container.appendChild(div);
@@ -1146,10 +1161,17 @@ function exibirResultado(res) {
     const status  = res.status || (res.error ? 'erro' : '?');
     const autorz  = res.autorizacao || {};
     const motivo  = autorz.motivo_status || res.error?.message || '';
-    const cor     = status === 'autorizado' ? '#4caf50' : status === 'rejeitado' ? '#f44336' : '#ff9800';
+    const isOk    = status === 'autorizado';
 
-    document.getElementById('resStatus').textContent  = status.toUpperCase();
-    document.getElementById('resStatus').style.color  = cor;
+    // Visual do painel
+    painel.className = 'result-panel ' + (isOk ? 'success' : 'error');
+
+    document.getElementById('resIcone').textContent  = isOk ? '✅' : '❌';
+    document.getElementById('resIcone').className    = 'result-icon ' + (isOk ? 'success' : 'error');
+    document.getElementById('resStatus').textContent  = isOk ? 'Autorizado' : status.charAt(0).toUpperCase() + status.slice(1);
+    document.getElementById('resSubtitle').textContent = isOk
+        ? `Protocolo: ${autorz.numero_protocolo || '-'}`
+        : 'A nota não foi aceita pela SEFAZ';
     document.getElementById('resId').textContent      = res.id || '-';
     document.getElementById('resSerieNum').textContent = res.serie && res.numero ? `${res.serie} / ${res.numero}` : '-';
     document.getElementById('resChave').textContent   = res.chave || autorz.chave_acesso || '-';
@@ -1158,7 +1180,7 @@ function exibirResultado(res) {
     const btnView = document.getElementById('btnDanfe');
     const btnDown = document.getElementById('btnDanfeDown');
     const btnXml  = document.getElementById('btnXmlDown');
-    if (status === 'autorizado' && res.id) {
+    if (isOk && res.id) {
         btnView.style.display = '';
         btnDown.style.display = '';
         if (btnXml) btnXml.style.display = '';
@@ -1169,8 +1191,27 @@ function exibirResultado(res) {
         document.getElementById('iframeDanfe').style.display = 'none';
     }
 
-    painel.style.display = '';
-    painel.scrollIntoView({ behavior: 'smooth' });
+    painel.style.display = 'block';
+    painel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    showToast(
+        isOk ? `NF-e ${res.serie}/${res.numero} autorizada com sucesso!` : `Nota ${status}: ${motivo.substring(0, 60)}...`,
+        isOk ? 'success' : 'error'
+    );
+}
+
+function showToast(msg, type = 'info', duration = 5000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toast = document.createElement('div');
+    const icon = { success: '✅', error: '❌', info: 'ℹ️' }[type] || 'ℹ️';
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('fadeout');
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
 }
 
 function abrirDanfe() {
