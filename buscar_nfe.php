@@ -1,5 +1,7 @@
 <?php
+ob_start();
 require_once 'session_check.php';
+ob_clean();
 header('Content-Type: application/json');
 
 $config       = require 'config.php';

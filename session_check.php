@@ -1,6 +1,7 @@
 <?php
+ob_start(); // Captura qualquer output acidental antes dos headers
 // Proteções de segurança sem autenticação
-if (session_status() === PHP_SESSION_NONE) session_start();
+if (session_status() === PHP_SESSION_NONE) @session_start();
 
 // Rate limiting por sessão (máx 60 req/minuto)
 $now    = time();
