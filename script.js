@@ -1,7 +1,7 @@
 // ==========================================
 // CONFIGURAÇÕES DA API (NUVEM FISCAL)
 // ==========================================
-const API_BASE = "https://api.nuvemfiscal.com.br";
+const API_BASE = "https://api.sandbox.nuvemfiscal.com.br";
 
 // ==========================================
 // INICIALIZAÇÃO E EVENTOS
