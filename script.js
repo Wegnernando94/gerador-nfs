@@ -1,10 +1,6 @@
 // ==========================================
 // CONFIGURAÇÕES DA API (NUVEM FISCAL)
 // ==========================================
-const CREDENCIAIS = {
-    client_id: 'SEU_CLIENT_ID_AQUI',         // Cole seu Client ID aqui
-    client_secret: 'SEU_CLIENT_SECRET_AQUI'  // Cole seu Client Secret aqui
-};
 const API_BASE = "https://api.nuvemfiscal.com.br";
 
 // ==========================================
@@ -97,14 +93,13 @@ function gerarXML() {
     let natOp = "VENDA";
     let finNFe = "1";
     let cfopBase = "5102"; 
-    let nfrefXml = ""; // Variável para a tag de nota referenciada
+    let nfrefXml = "";
 
     if (perfil === "DEVOLUCAO") {
         natOp = "DEVOLUCAO DE MERCADORIA";
         finNFe = "4";      
         cfopBase = "5202"; 
         
-        // Pega a chave referenciada do HTML (se existir)
         const chaveRef = clean(getV('refNFe'));
         if (chaveRef.length === 44) {
             nfrefXml = `<NFref><refNFe>${chaveRef}</refNFe></NFref>`;
@@ -182,7 +177,6 @@ function gerarXML() {
     document.getElementById('xml-output').style.display = 'block';
     document.getElementById('btnDownload').style.display = 'block';
     
-    // Mostra o botão de transmitir se existir no HTML
     const btnTransmitir = document.getElementById('btnTransmitir');
     if(btnTransmitir) btnTransmitir.style.display = 'block';
 }
@@ -199,16 +193,29 @@ function baixarXML() {
 // INTEGRAÇÃO API - NUVEM FISCAL
 // ==========================================
 async function obterToken() {
+    // Lê as credenciais apenas no momento em que precisa delas
+    const clientId = document.getElementById('apiClientId')?.value;
+    const clientSecret = document.getElementById('apiClientSecret')?.value;
+
+    if (!clientId || !clientSecret) {
+        throw new Error("Credenciais da API não preenchidas!");
+    }
+
     const resp = await fetch(`${API_BASE}/oauth/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
             grant_type: 'client_credentials',
-            client_id: CREDENCIAIS.client_id,
-            client_secret: CREDENCIAIS.client_secret,
+            client_id: clientId,
+            client_secret: clientSecret,
             scope: 'nfe'
         })
     });
+    
+    if (!resp.ok) {
+        throw new Error("Falha ao autenticar na Nuvem Fiscal. Verifique suas credenciais.");
+    }
+
     const data = await resp.json();
     return data.access_token;
 }
@@ -242,7 +249,7 @@ async function transmitirParaSefaz() {
         }
     } catch (err) {
         console.error("Erro no fetch:", err);
-        alert("Erro na comunicação com a API da Nuvem Fiscal.");
+        alert(err.message || "Erro na comunicação com a API da Nuvem Fiscal.");
     } finally {
         btn.innerText = "🚀 TRANSMITIR PARA SEFAZ (HOMOLOGAÇÃO)";
         btn.disabled = false;
