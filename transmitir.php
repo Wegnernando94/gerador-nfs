@@ -1,53 +1,67 @@
 <?php
-// transmitir.php
-require_once 'autoload_manual.php';
+require_once 'session_check.php';
+header('Content-Type: application/json');
 
-// Carrega as credenciais do arquivo externo
-$config_api = require 'config.php';
+// 1. Carrega as chaves com segurança
+$config = require 'config.php';
+$clientId = $config['client_id'];
+$clientSecret = $config['client_secret'];
 
-$xml = file_get_contents('php://input');
+// 2. Recebe o JSON blindado do Front-end
+$jsonBody = file_get_contents('php://input');
 
-if (!$xml) {
+// Trava de segurança: impede envio de XML acidental
+json_decode($jsonBody);
+if (json_last_error() !== JSON_ERROR_NONE) {
     http_response_code(400);
-    die(json_encode(['error' => 'XML não recebido']));
+    echo json_encode(["error" => "Formato inválido. O PHP esperava um JSON."]);
+    exit;
 }
 
 try {
-    // 1. Autenticação OAuth2 (Sandbox)
-    $ch = curl_init("{$config_api['api_base']}/oauth/token");
-    curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
-        'grant_type'    => 'client_credentials',
-        'client_id'     => $config_api['client_id'],
-        'client_secret' => $config_api['client_secret'],
-        'scope'         => 'nfe'
-    ]));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    $auth = json_decode(curl_exec($ch), true);
-    curl_close($ch);
+    // 3. Autenticação na Nuvem Fiscal (Gera o Token)
+    $authUrl = "https://auth.nuvemfiscal.com.br/oauth/token";
+    $chAuth = curl_init($authUrl);
+    curl_setopt($chAuth, CURLOPT_POST, true);
+    curl_setopt($chAuth, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($chAuth, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($chAuth, CURLOPT_POSTFIELDS, http_build_query(['grant_type' => 'client_credentials', 'scope' => 'nfe']));
+    curl_setopt($chAuth, CURLOPT_HTTPHEADER, [
+        "Authorization: Basic " . base64_encode(trim($clientId) . ":" . trim($clientSecret)),
+        "Content-Type: application/x-www-form-urlencoded"
+    ]);
 
-    if (!isset($auth['access_token'])) {
-        throw new Exception("Falha na autenticação: Verifique o Client ID/Secret.");
+    $authResponse = curl_exec($chAuth);
+    $authData = json_decode($authResponse);
+    curl_close($chAuth);
+
+    if (!isset($authData->access_token)) {
+        http_response_code(401);
+        echo json_encode(["error" => "Falha na Autenticação Nuvem Fiscal", "detalhes" => $authData]);
+        exit;
     }
 
-    // 2. Transmissão da NF-e
-    $ch = curl_init("{$config_api['api_base']}/nfe");
-    curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $xml);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Authorization: Bearer " . $auth['access_token'],
-        "Content-Type: application/xml"
+    // 4. Envia a NF-e para o ambiente de Sandbox
+    $apiUrl = "https://api.sandbox.nuvemfiscal.com.br/nfe";
+    $chNfe = curl_init($apiUrl);
+    curl_setopt($chNfe, CURLOPT_POST, true);
+    curl_setopt($chNfe, CURLOPT_POSTFIELDS, $jsonBody); 
+    curl_setopt($chNfe, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($chNfe, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($chNfe, CURLOPT_HTTPHEADER, [
+        "Authorization: Bearer " . $authData->access_token,
+        "Content-Type: application/json" 
     ]);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     
-    $resposta = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+    $resposta = curl_exec($chNfe);
+    $httpCode = curl_getinfo($chNfe, CURLINFO_HTTP_CODE);
+    curl_close($chNfe);
 
-    http_response_code($http_code);
-    header('Content-Type: application/json');
+    // 5. Devolve a resposta exata da API para o seu JavaScript
+    http_response_code($httpCode);
     echo $resposta;
 
 } catch (Exception $e) {
-    echo json_encode(['error' => ['message' => $e->getMessage()]]);
+    http_response_code(500);
+    echo json_encode(["error" => $e->getMessage()]);
 }
