@@ -101,8 +101,27 @@ try {
     $httpCode = curl_getinfo($chEmp, CURLINFO_HTTP_CODE);
     curl_close($chEmp);
 
+    // Parse e reformat a resposta da API
+    $apiResponse = json_decode($resposta, true);
+
+    // A API pode retornar um array direto ou um objeto com dados
+    // Normalizamos para o formato esperado pelo frontend: { data: [...] }
+    if (is_array($apiResponse)) {
+        // Se for array direto, assumimos que é a lista de empresas
+        $formattedResponse = ['data' => $apiResponse];
+    } elseif (isset($apiResponse['data'])) {
+        // Se já tem 'data', mantém como está
+        $formattedResponse = $apiResponse;
+    } elseif (isset($apiResponse['empresas'])) {
+        // Alguns endpoints usam 'empresas' em vez de 'data'
+        $formattedResponse = ['data' => $apiResponse['empresas']];
+    } else {
+        // Se nada funcionar, passa a resposta como é
+        $formattedResponse = ['data' => $apiResponse];
+    }
+
     http_response_code($httpCode);
-    echo $resposta;
+    echo json_encode($formattedResponse);
 
 } catch (Exception $e) {
     http_response_code(500);
