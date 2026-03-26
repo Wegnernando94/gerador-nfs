@@ -1499,8 +1499,9 @@ async function carregarDropdownsEmpresas() {
             return;
         }
         const res = await resp.json();
-        if (res.error || !res.data) {
-            console.error('Erro da API de empresas:', res.error || res);
+        console.log('Resposta da API de empresas:', res);
+        if (res.error || !res.data || res.data.length === 0) {
+            console.error('Erro da API de empresas ou sem dados:', res.error || res);
             return;
         }
         let opt = res.data.map(e => {
@@ -1517,6 +1518,7 @@ async function carregarDropdownsEmpresas() {
                 data-ie="${e.inscricao_estadual || ''}"
             >${e.nome_razao_social}</option>`;
         }).join('');
+        console.log('Opções criadas:', opt);
         document.getElementById('dropEmit').innerHTML = '<option value="">Selecione...</option>' + opt;
         document.getElementById('dropDest').innerHTML = '<option value="">Selecione...</option>' + opt;
         initCombobox('cbEmit', 'dropEmit');
