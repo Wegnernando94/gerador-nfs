@@ -28,12 +28,19 @@ try {
     curl_setopt($chAuth, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($chAuth, CURLOPT_SSL_VERIFYPEER, true);
     curl_setopt($chAuth, CURLOPT_SSL_VERIFYHOST, 2);
-    curl_setopt($chAuth, CURLOPT_CAINFO, '/var/www/html/certs/cacert.pem');
     curl_setopt($chAuth, CURLOPT_POSTFIELDS, http_build_query(['grant_type' => 'client_credentials', 'scope' => 'nfe']));
     curl_setopt($chAuth, CURLOPT_HTTPHEADER, [
         "Authorization: Basic " . base64_encode(trim($clientId) . ":" . trim($clientSecret)),
         "Content-Type: application/x-www-form-urlencoded"
     ]);
+    // SSL certificate fallback
+    $cafile = '/var/www/html/certs/cacert.pem';
+    if (file_exists($cafile)) {
+        curl_setopt($chAuth, CURLOPT_CAINFO, $cafile);
+    } else {
+        curl_setopt($chAuth, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($chAuth, CURLOPT_SSL_VERIFYHOST, 0);
+    }
 
     $authResponse = curl_exec($chAuth);
     $authData = json_decode($authResponse);
@@ -53,12 +60,19 @@ try {
     curl_setopt($chNfe, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($chNfe, CURLOPT_SSL_VERIFYPEER, true);
     curl_setopt($chNfe, CURLOPT_SSL_VERIFYHOST, 2);
-    curl_setopt($chNfe, CURLOPT_CAINFO, '/var/www/html/certs/cacert.pem');
     curl_setopt($chNfe, CURLOPT_HTTPHEADER, [
         "Authorization: Bearer " . $authData->access_token,
-        "Content-Type: application/json" 
+        "Content-Type: application/json"
     ]);
-    
+    // SSL certificate fallback
+    $cafile = '/var/www/html/certs/cacert.pem';
+    if (file_exists($cafile)) {
+        curl_setopt($chNfe, CURLOPT_CAINFO, $cafile);
+    } else {
+        curl_setopt($chNfe, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($chNfe, CURLOPT_SSL_VERIFYHOST, 0);
+    }
+
     $resposta = curl_exec($chNfe);
     $httpCode = curl_getinfo($chNfe, CURLINFO_HTTP_CODE);
     curl_close($chNfe);

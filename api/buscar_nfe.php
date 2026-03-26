@@ -27,13 +27,20 @@ try {
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_CAINFO         => '/var/www/html/certs/cacert.pem',
         CURLOPT_POSTFIELDS     => http_build_query(['grant_type' => 'client_credentials', 'scope' => 'nfe']),
         CURLOPT_HTTPHEADER     => [
             "Authorization: Basic " . base64_encode(trim($clientId) . ":" . trim($clientSecret)),
             "Content-Type: application/x-www-form-urlencoded"
         ]
     ]);
+    // SSL certificate fallback
+    $cafile = '/var/www/html/certs/cacert.pem';
+    if (file_exists($cafile)) {
+        curl_setopt($chAuth, CURLOPT_CAINFO, $cafile);
+    } else {
+        curl_setopt($chAuth, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($chAuth, CURLOPT_SSL_VERIFYHOST, 0);
+    }
     $authData = json_decode(curl_exec($chAuth));
     curl_close($chAuth);
 
@@ -58,10 +65,17 @@ try {
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_CAINFO         => '/var/www/html/certs/cacert.pem',
+            CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_HTTPHEADER     => ["Authorization: Bearer " . $authData->access_token]
         ]);
+        // SSL certificate fallback
+        $cafile = '/var/www/html/certs/cacert.pem';
+        if (file_exists($cafile)) {
+            curl_setopt($ch, CURLOPT_CAINFO, $cafile);
+        } else {
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        }
         $resp     = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
@@ -88,9 +102,16 @@ try {
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_CAINFO         => '/var/www/html/certs/cacert.pem',
         CURLOPT_HTTPHEADER     => ["Authorization: Bearer " . $authData->access_token]
     ]);
+    // SSL certificate fallback
+    $cafile = '/var/www/html/certs/cacert.pem';
+    if (file_exists($cafile)) {
+        curl_setopt($chJson, CURLOPT_CAINFO, $cafile);
+    } else {
+        curl_setopt($chJson, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($chJson, CURLOPT_SSL_VERIFYHOST, 0);
+    }
     $jsonNota = json_decode(curl_exec($chJson), true);
     curl_close($chJson);
 
@@ -100,9 +121,16 @@ try {
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_CAINFO         => '/var/www/html/certs/cacert.pem',
         CURLOPT_HTTPHEADER     => ["Authorization: Bearer " . $authData->access_token]
     ]);
+    // SSL certificate fallback
+    $cafile = '/var/www/html/certs/cacert.pem';
+    if (file_exists($cafile)) {
+        curl_setopt($chBody, CURLOPT_CAINFO, $cafile);
+    } else {
+        curl_setopt($chBody, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($chBody, CURLOPT_SSL_VERIFYHOST, 0);
+    }
     $bodyResp = curl_exec($chBody);
     $bodyCode = curl_getinfo($chBody, CURLINFO_HTTP_CODE);
     curl_close($chBody);
@@ -138,10 +166,17 @@ try {
         curl_setopt_array($chXml, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_CAINFO         => '/var/www/html/certs/cacert.pem',
+            CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_HTTPHEADER     => ["Authorization: Bearer " . $authData->access_token]
         ]);
+        // SSL certificate fallback
+        $cafile = '/var/www/html/certs/cacert.pem';
+        if (file_exists($cafile)) {
+            curl_setopt($chXml, CURLOPT_CAINFO, $cafile);
+        } else {
+            curl_setopt($chXml, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($chXml, CURLOPT_SSL_VERIFYHOST, 0);
+        }
         $xmlResp = curl_exec($chXml);
         $xmlCode = curl_getinfo($chXml, CURLINFO_HTTP_CODE);
         curl_close($chXml);

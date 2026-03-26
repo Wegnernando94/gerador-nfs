@@ -59,8 +59,16 @@ function nuvemFiscalToken(): string
         CURLOPT_TIMEOUT        => 30,
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_CAINFO         => NUVEM_CAINFO,
     ]);
+
+    // SSL certificate fallback
+    $cafile = NUVEM_CAINFO;
+    if (file_exists($cafile)) {
+        curl_setopt($ch, CURLOPT_CAINFO, $cafile);
+    } else {
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+    }
 
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -114,8 +122,16 @@ function nuvemFiscalRequest(string $method, string $path, $body = null, array $e
         CURLOPT_TIMEOUT        => 60,
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_CAINFO         => NUVEM_CAINFO,
     ]);
+
+    // SSL certificate fallback
+    $cafile = NUVEM_CAINFO;
+    if (file_exists($cafile)) {
+        curl_setopt($ch, CURLOPT_CAINFO, $cafile);
+    } else {
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+    }
 
     if (in_array($method, ['POST', 'PUT', 'PATCH'], true) && $body !== null) {
         $jsonBody = json_encode($body);

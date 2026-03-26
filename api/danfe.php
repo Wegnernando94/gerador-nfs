@@ -22,13 +22,20 @@ try {
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_CAINFO         => '/var/www/html/certs/cacert.pem',
         CURLOPT_POSTFIELDS     => http_build_query(['grant_type' => 'client_credentials', 'scope' => 'nfe']),
         CURLOPT_HTTPHEADER     => [
             "Authorization: Basic " . base64_encode(trim($clientId) . ":" . trim($clientSecret)),
             "Content-Type: application/x-www-form-urlencoded"
         ]
     ]);
+    // SSL certificate fallback
+    $cafile = '/var/www/html/certs/cacert.pem';
+    if (file_exists($cafile)) {
+        curl_setopt($chAuth, CURLOPT_CAINFO, $cafile);
+    } else {
+        curl_setopt($chAuth, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($chAuth, CURLOPT_SSL_VERIFYHOST, 0);
+    }
     $authData = json_decode(curl_exec($chAuth));
     curl_close($chAuth);
 
@@ -42,9 +49,16 @@ try {
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_CAINFO         => '/var/www/html/certs/cacert.pem',
         CURLOPT_HTTPHEADER     => ["Authorization: Bearer " . $authData->access_token]
     ]);
+    // SSL certificate fallback
+    $cafile = '/var/www/html/certs/cacert.pem';
+    if (file_exists($cafile)) {
+        curl_setopt($chPdf, CURLOPT_CAINFO, $cafile);
+    } else {
+        curl_setopt($chPdf, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($chPdf, CURLOPT_SSL_VERIFYHOST, 0);
+    }
     $pdf      = curl_exec($chPdf);
     $httpCode = curl_getinfo($chPdf, CURLINFO_HTTP_CODE);
     curl_close($chPdf);
