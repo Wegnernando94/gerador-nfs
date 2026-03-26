@@ -3,6 +3,15 @@ ob_start();
 require_once __DIR__ . '/../helpers/session_check.php';
 ob_clean();
 header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+// Handle preflight OPTIONS request
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
 
 // 1. Carrega as chaves com segurança
 $config = require __DIR__ . '/../config/config.php';
@@ -33,8 +42,8 @@ try {
         "Authorization: Basic " . base64_encode(trim($clientId) . ":" . trim($clientSecret)),
         "Content-Type: application/x-www-form-urlencoded"
     ]);
-    // SSL certificate fallback
-    $cafile = '/var/www/html/certs/cacert.pem';
+    // SSL certificate fallback (path relativo para funcionar em qualquer ambiente)
+    $cafile = __DIR__ . '/../certs/cacert.pem';
     if (file_exists($cafile)) {
         curl_setopt($chAuth, CURLOPT_CAINFO, $cafile);
     } else {
@@ -64,8 +73,8 @@ try {
         "Authorization: Bearer " . $authData->access_token,
         "Content-Type: application/json"
     ]);
-    // SSL certificate fallback
-    $cafile = '/var/www/html/certs/cacert.pem';
+    // SSL certificate fallback (path relativo para funcionar em qualquer ambiente)
+    $cafile = __DIR__ . '/../certs/cacert.pem';
     if (file_exists($cafile)) {
         curl_setopt($chNfe, CURLOPT_CAINFO, $cafile);
     } else {

@@ -21,7 +21,8 @@ define('NUVEM_TOKEN_TTL',     3500); // seconds (expires_in is typically 3600)
 // CA bundle local (cacert.pem baixado de https://curl.se/ca/cacert.pem)
 // Resolve "SSL certificate problem: unable to get local issuer certificate"
 // em ambientes Windows onde o php.ini não tem curl.cainfo configurado.
-define('NUVEM_CAINFO', '/var/www/html/certs/cacert.pem');
+// Path relativo ao __DIR__ para funcionar em qualquer ambiente
+define('NUVEM_CAINFO', __DIR__ . '/../certs/cacert.pem');
 
 unset($_nuvemCfg);
 
@@ -76,7 +77,9 @@ function nuvemFiscalToken(): string
     curl_close($ch);
 
     if ($response === false || $curlError) {
-        throw new RuntimeException('cURL error during token request: ' . $curlError);
+        $errMsg = 'cURL error during token request: ' . $curlError;
+        error_log('[NuvemFiscal] ' . $errMsg);
+        throw new RuntimeException($errMsg);
     }
 
     $data = json_decode($response, true);
@@ -148,7 +151,14 @@ function nuvemFiscalRequest(string $method, string $path, $body = null, array $e
     curl_close($ch);
 
     if ($response === false || $curlError) {
-        throw new RuntimeException('cURL error during API request to ' . $path . ': ' . $curlError);
+        $errMsg = 'cURL error during API request to ' . $path . ': ' . $curlError;
+        error_log('[NuvemFiscal] ' . $errMsg);
+        throw new RuntimeException($errMsg);
+    }
+
+    // Log non-2xx responses para diagnosticar problemas
+    if ($httpCode < 200 || $httpCode >= 300) {
+        error_log('[NuvemFiscal] Non-2xx response for ' . $method . ' ' . $path . ': HTTP ' . $httpCode);
     }
 
     $decoded = json_decode($response, true);

@@ -3,6 +3,15 @@ ob_start();
 require_once __DIR__ . '/../helpers/session_check.php';
 ob_clean();
 header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, HEAD, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+// Handle preflight OPTIONS request
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
 
 // Allow HEAD requests for CSRF token retrieval
 if ($_SERVER['REQUEST_METHOD'] === 'HEAD') {
@@ -23,7 +32,7 @@ try {
     curl_setopt($chAuth, CURLOPT_SSL_VERIFYPEER, true);
     curl_setopt($chAuth, CURLOPT_SSL_VERIFYHOST, 2);
     // Usa certificado padrão do sistema se disponível, caso contrário desabilita verificação (apenas para sandbox)
-    $cafile = '/var/www/html/certs/cacert.pem';
+    $cafile = __DIR__ . '/../certs/cacert.pem';
     if (file_exists($cafile)) {
         curl_setopt($chAuth, CURLOPT_CAINFO, $cafile);
     } else {

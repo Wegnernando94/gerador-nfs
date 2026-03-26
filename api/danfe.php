@@ -1,6 +1,16 @@
 <?php
 require_once __DIR__ . '/../helpers/session_check.php';
 
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+// Handle preflight OPTIONS request
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     http_response_code(405);
     header('Allow: GET');
@@ -29,7 +39,7 @@ try {
         ]
     ]);
     // SSL certificate fallback
-    $cafile = '/var/www/html/certs/cacert.pem';
+    $cafile = __DIR__ . '/../certs/cacert.pem';
     if (file_exists($cafile)) {
         curl_setopt($chAuth, CURLOPT_CAINFO, $cafile);
     } else {
@@ -52,7 +62,7 @@ try {
         CURLOPT_HTTPHEADER     => ["Authorization: Bearer " . $authData->access_token]
     ]);
     // SSL certificate fallback
-    $cafile = '/var/www/html/certs/cacert.pem';
+    $cafile = __DIR__ . '/../certs/cacert.pem';
     if (file_exists($cafile)) {
         curl_setopt($chPdf, CURLOPT_CAINFO, $cafile);
     } else {
