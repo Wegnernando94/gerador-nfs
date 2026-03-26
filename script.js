@@ -320,6 +320,11 @@ async function transmitirDevolucao(notaOriginal) {
         });
         const res = await resp.json();
 
+        // Salva payload original no localStorage para reenvio futuro
+        if (res.id) {
+            try { localStorage.setItem('nfe_payload_' + res.id, JSON.stringify(payload)); } catch(_){}
+        }
+
         exibirResultado(res);
 
         // Se aprovado, abre o DANFE automaticamente
@@ -1073,6 +1078,12 @@ async function transmitirParaSefaz() {
 
         const resp = await fetch('transmitir.php', { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' } });
         const res = await resp.json();
+
+        // Salva payload original no localStorage para reenvio futuro
+        if (res.id) {
+            try { localStorage.setItem('nfe_payload_' + res.id, JSON.stringify(payload)); } catch(_){}
+        }
+
         exibirResultado(res);
 
         // Auto-incrementa o número para a próxima emissão
@@ -1124,7 +1135,7 @@ async function popularEmpresasConsulta() {
     const dropEmit = document.getElementById('dropEmit');
     if (dropEmit && dropEmit.options.length > 1) {
         sel.innerHTML = Array.from(dropEmit.options).map(o =>
-            `<option value="${o.value}">${o.text}</option>`
+            `<option value="${o.value}" data-nome="${o.dataset.nome || o.text}">${o.text}</option>`
         ).join('');
         return;
     }
@@ -1132,8 +1143,8 @@ async function popularEmpresasConsulta() {
     try {
         const resp = await fetch('listar_empresas.php');
         const res  = await resp.json();
-        sel.innerHTML = res.data.map(e =>
-            `<option value="${e.cpf_cnpj}">${e.nome_razao_social} — ${e.cpf_cnpj}</option>`
+        sel.innerHTML = '<option value="">Selecione a empresa...</option>' + res.data.map(e =>
+            `<option value="${e.cpf_cnpj}" data-nome="${e.nome_razao_social}">${e.nome_razao_social}</option>`
         ).join('');
     } catch { sel.innerHTML = '<option value="">Erro ao carregar empresas</option>'; }
 }
@@ -1146,9 +1157,12 @@ function fecharConsulta() {
 
 async function buscarNotas(skip) {
     _skipAtual = skip;
-    const top    = parseInt(document.getElementById('filtroTop').value) || 50;
+    const top    = parseInt(document.getElementById('filtroTop').value) || 20;
     const status = document.getElementById('filtroStatus').value;
     const cnpj   = (document.getElementById('filtroEmpresa').value || '').replace(/\D/g, '');
+    // Limpa filtro de busca ao recarregar
+    const filtroNumInput = document.getElementById('filtroNumero');
+    if (filtroNumInput) filtroNumInput.value = '';
 
     if (!cnpj) {
         document.getElementById('corpoTabela').innerHTML =
@@ -1161,7 +1175,7 @@ async function buscarNotas(skip) {
     document.getElementById('corpoTabela').innerHTML = '';
     fecharDanfeViewer();
 
-    const params = new URLSearchParams({ top: 50, skip, cpf_cnpj: cnpj });
+    const params = new URLSearchParams({ top, skip, cpf_cnpj: cnpj });
 
     try {
         let notas = [];
@@ -1202,18 +1216,18 @@ async function buscarNotas(skip) {
                 // A API de listagem não retorna emitente/destinatário — extraímos o CNPJ emitente da chave
                 const cnpjEmit = n.chave ? n.chave.substring(6, 20) : '-';
                 const emitente = cnpjEmit !== '-' ? cnpjEmit.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5') : '-';
-                const dest    = n.destinatario?.nome || n.destinatario?.razao_social || n.referencia || '-';
+                const dest    = n.destinatario?.nome || n.destinatario?.razao_social || '-';
                 const valor   = n.valor_total != null ? 'R$ ' + parseFloat(n.valor_total).toFixed(2) : '-';
                 const st      = n.status || 'outro';
                 const badgeCls = { autorizado:'badge-autorizado', rejeitado:'badge-rejeitado', pendente:'badge-pendente', cancelado:'badge-cancelado' }[st] || 'badge-outro';
                 const chave   = n.chave || '-';
                 const chaveShort = chave !== '-' ? chave.slice(0,10) + '...' : '-';
                 const podeImprimir = st === 'autorizado';
-                return `<tr>
+                return `<tr data-numero="${n.numero || ''}" data-cnpj="${cnpjEmit}" data-dest="${dest.toLowerCase()}">
                     <td>${data}</td>
                     <td>${n.serie || '-'} / ${n.numero || '-'}</td>
                     <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${emitente}">${emitente}</td>
-                    <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${dest}">${dest}</td>
+                    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${dest}">${dest}</td>
                     <td>${valor}</td>
                     <td><span class="badge ${badgeCls}">${st}</span></td>
                     <td style="font-family:monospace;font-size:0.75em;" title="${chave}">${chaveShort}</td>
@@ -1222,7 +1236,9 @@ async function buscarNotas(skip) {
                         <button class="btn btn-primary" style="padding:4px 10px;font-size:0.8em;" onclick="verDanfeConsulta('${n.id}','${n.serie}/${n.numero}')">Ver PDF</button>
                         <button class="btn btn-success" style="padding:4px 10px;font-size:0.8em;" onclick="baixarDanfeConsulta('${n.id}','${n.serie}/${n.numero}')">Baixar PDF</button>
                         <button class="btn btn-warning" style="padding:4px 10px;font-size:0.8em;" onclick="baixarXmlConsulta('${n.id}','${n.serie}/${n.numero}')">XML</button>
-                        ` : '<span style="color:#666;font-size:0.8em;">-</span>'}
+                        ` : ''}
+                        ${st === 'rejeitado' ? `<button class="btn-reenviar" onclick="abrirReenvioNFe('${n.id}','${n.chave || ''}')">↩️ Reenviar</button>` : ''}
+                        ${!podeImprimir && st !== 'rejeitado' ? '<span style="color:#666;font-size:0.8em;">-</span>' : ''}
                     </td>
                 </tr>`;
             }).join('');
@@ -1243,8 +1259,21 @@ async function buscarNotas(skip) {
 }
 
 function paginarNotas(dir) {
-    const top = parseInt(document.getElementById('filtroTop').value) || 50;
+    const top = parseInt(document.getElementById('filtroTop').value) || 20;
     buscarNotas(Math.max(0, _skipAtual + dir * top));
+}
+
+function filtrarTabelaNotas() {
+    const termo = (document.getElementById('filtroNumero').value || '').trim().toLowerCase();
+    const rows = document.querySelectorAll('#corpoTabela tr[data-numero]');
+    rows.forEach(row => {
+        if (!termo) { row.style.display = ''; return; }
+        const num  = String(row.dataset.numero || '');
+        const cnpj = String(row.dataset.cnpj || '');
+        const dest = String(row.dataset.dest || '');
+        const match = num.includes(termo) || cnpj.includes(termo.replace(/\D/g, '')) || dest.includes(termo);
+        row.style.display = match ? '' : 'none';
+    });
 }
 
 let _idDanfeViewer = null;
@@ -1389,6 +1418,14 @@ const UF_PARA_CUF = {
     RJ:33, RN:24, RS:43, RO:11, RR:14, SC:42, SP:35, SE:28, TO:17
 };
 
+// Alíquota interna de ICMS por UF — para cálculo do DIFAL (EC 87/2015)
+const ALIQ_INTERNA_ICMS = {
+    AC:17, AL:17, AP:18, AM:20, BA:19, CE:18, DF:18, ES:17, GO:17,
+    MA:18, MT:17, MS:17, MG:18, PA:17, PB:18, PR:19, PE:18, PI:18,
+    RJ:20, RN:18, RS:17, RO:17, RR:20, SC:17, SP:18, SE:19, TO:18
+};
+
+
 // DROPDOWNS
 async function carregarDropdownsEmpresas() {
     try {
@@ -1414,11 +1451,25 @@ async function carregarDropdownsEmpresas() {
                 data-nro="${end.numero || 'SN'}"
                 data-xbairro="${end.bairro || ''}"
                 data-cep="${(end.cep || '').replace(/\D/g,'')}"
+                data-ie="${e.inscricao_estadual || ''}"
             >${e.nome_razao_social}</option>`;
         }).join('');
         document.getElementById('dropEmit').innerHTML = '<option value="">Selecione...</option>' + opt;
         document.getElementById('dropDest').innerHTML = '<option value="">Selecione...</option>' + opt;
     } catch(e) { console.error("Erro ao carregar empresas", e); }
+}
+
+function filtrarDropdown(selectId, termo) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    const t = termo.trim().toLowerCase().replace(/[.\-\/]/g, '');
+    Array.from(sel.options).forEach(opt => {
+        if (!opt.value) return; // keep placeholder visible
+        const nome = (opt.dataset.nome || opt.text || '').toLowerCase();
+        const cnpj = (opt.value || '').replace(/\D/g, '');
+        const match = !t || nome.includes(t) || cnpj.includes(t);
+        opt.hidden = !match;
+    });
 }
 
 function selecionarEmpresa(sel, tipo) {
@@ -1816,6 +1867,688 @@ async function empUploadCertificado() {
 // Fechar modal clicando no overlay
 document.getElementById('modalEmpresa').addEventListener('click', function(e) {
     if (e.target === this) fecharCadastroEmpresa();
+});
+
+// ==========================================
+// REENVIO DE NF-e — MODAL
+// ==========================================
+
+let _rnvNota   = null;   // full NF-e object from API
+let _rnvId     = '';     // NF-e ID
+let _rnvEmit   = null;   // dados cadastrais do emitente (da empresa cadastrada)
+
+// Mapa de rejeições SEFAZ: código → {titulo, descricao, solucao}
+const REJEICAO_DICT = {
+    '100': { titulo: 'Autorizado', descricao: 'Nota autorizada com sucesso.', solucao: null, tipo: 'autorizacao' },
+    '101': { titulo: 'Cancelamento homologado', descricao: 'Nota cancelada com sucesso.', solucao: null, tipo: 'cancelamento' },
+    '110': { titulo: 'Denegada', descricao: 'Nota denegada pela SEFAZ.', solucao: 'Verifique a situação cadastral do emitente ou destinatário.', tipo: 'rejeicao' },
+    '204': { titulo: 'Duplicidade de NF-e', descricao: 'A chave de acesso já existe na SEFAZ.', solucao: 'Altere o número ou a série da nota.', tipo: 'rejeicao' },
+    '215': { titulo: 'Falha no Schema XML', descricao: 'A estrutura do XML está inválida.', solucao: 'Verifique os campos obrigatórios e os formatos dos valores.', tipo: 'rejeicao' },
+    '228': { titulo: 'Data de emissão inválida', descricao: 'A data de emissão está fora do prazo permitido (máx. 3 dias).', solucao: 'A nova emissão usará a data atual automaticamente.', tipo: 'rejeicao' },
+    '241': { titulo: 'Número já utilizado e ativo', descricao: 'O número já foi emitido com esse CNPJ/Série.', solucao: 'Use um número de NF-e diferente.', tipo: 'rejeicao' },
+    '360': { titulo: 'IE do emitente não cadastrada', descricao: 'A Inscrição Estadual do emitente não foi encontrada.', solucao: 'Atualize o cadastro da empresa na Nuvem Fiscal com a IE correta.', tipo: 'rejeicao' },
+    '539': { titulo: 'Soma dos itens ≠ Total da nota', descricao: 'A soma dos valores dos itens não bate com o campo vNF.', solucao: 'Revise os valores dos itens, IPI, ST, Frete e Desconto. O sistema recalcula automaticamente.', tipo: 'rejeicao' },
+    '545': { titulo: 'Município de FG inválido', descricao: 'O código do município de fato gerador não corresponde à UF.', solucao: 'Corrija o código IBGE do município emitente.', tipo: 'rejeicao' },
+    '591': { titulo: 'ICMS Simples Nacional incompleto', descricao: 'Campos do CSOSN estão ausentes ou inválidos.', solucao: 'Verifique o CSOSN e os dados de tributação do Simples Nacional.', tipo: 'rejeicao' },
+    '610': { titulo: 'Código de município inválido', descricao: 'O código de município informado não existe ou não pertence à UF.', solucao: 'Corrija o código IBGE conforme a tabela oficial do IBGE.', tipo: 'rejeicao' },
+    '656': { titulo: 'CNPJ do emitente inválido', descricao: 'O CNPJ do emitente não está ativo na Receita Federal.', solucao: 'Verifique o cadastro da empresa emitente na Nuvem Fiscal.', tipo: 'rejeicao' },
+    '694': { titulo: 'ICMS para UF de destino não informado', descricao: 'O grupo ICMSUFDest é obrigatório para operações interestaduais com consumidor final.', solucao: 'Verifique se o CFOP indica operação interestadual (prefixo 6) e se o DIFAL está sendo calculado.', tipo: 'rejeicao' },
+};
+
+async function abrirReenvioNFe(id, chave) {
+    _rnvId   = id;
+    _rnvNota = null;
+
+    // Reset modal
+    document.getElementById('modalReenvioNFe').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    document.getElementById('rnvInfoNota').textContent = 'Carregando dados da nota...';
+    document.getElementById('rnvItens').innerHTML = '';
+    document.getElementById('rnvCnpjDest').value = '';
+    document.getElementById('rnvListaEventos').innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px;">Carregando eventos...</div>';
+    document.getElementById('rnvTabBtnDanfe').disabled = true;
+    document.getElementById('rnvDanfeLock').style.display = '';
+    document.getElementById('rnvDanfeContent').style.display = 'none';
+    rnvTrocarAba('form');
+    rnvOcultarAlert();
+
+    // Popula select de destinatário com empresas cadastradas
+    const dropEmit = document.getElementById('dropEmit');
+    const destSel  = document.getElementById('rnvDestSelect');
+    if (dropEmit && dropEmit.options.length > 1) {
+        destSel.innerHTML = '<option value="">— ou selecione empresa cadastrada —</option>'
+            + Array.from(dropEmit.options).filter(o => o.value).map(o =>
+                `<option value="${o.value}">${o.text}</option>`
+            ).join('');
+    }
+
+    // Load NF-e data and events in parallel
+    const fetchUrl = chave && chave.length === 44
+        ? `buscar_nfe.php?chave=${chave}&id=${encodeURIComponent(id)}`
+        : `buscar_nfe.php?id=${encodeURIComponent(id)}`;
+    const [notaData, eventosData] = await Promise.allSettled([
+        fetch(fetchUrl).then(r => r.json()),
+        fetch(`eventos_nfe.php?id=${id}`).then(r => r.json())
+    ]);
+
+    // Populate form
+    if (notaData.status === 'fulfilled' && notaData.value && !notaData.value.error) {
+        _rnvNota = notaData.value;
+
+        // Se a API não trouxe itens (nota rejeitada), tenta recuperar payload original do localStorage
+        const detFromApi = _rnvNota.infNFe?.det || [];
+        if (detFromApi.length === 0) {
+            try {
+                const saved = localStorage.getItem('nfe_payload_' + id);
+                if (saved) {
+                    const original = JSON.parse(saved);
+                    const origInf  = original.infNFe || {};
+                    // Mescla dados do payload original que a API não retorna
+                    if (origInf.det && origInf.det.length > 0) {
+                        _rnvNota.infNFe = _rnvNota.infNFe || {};
+                        _rnvNota.infNFe.det  = origInf.det;
+                    }
+                    if (origInf.dest && (origInf.dest.CNPJ || origInf.dest.CPF)) {
+                        _rnvNota.infNFe.dest = origInf.dest;
+                    }
+                    if (origInf.emit && (origInf.emit.CNPJ || origInf.emit.CPF)) {
+                        _rnvNota.infNFe.emit = origInf.emit;
+                    }
+                    if (origInf.total) {
+                        _rnvNota.infNFe.total = origInf.total;
+                    }
+                    if (origInf.ide) {
+                        _rnvNota.infNFe.ide = { ..._rnvNota.infNFe.ide, ...origInf.ide };
+                    }
+                    console.log('[Reenvio] Dados recuperados do localStorage');
+                }
+            } catch(e) { console.warn('[Reenvio] Falha ao ler localStorage:', e); }
+        }
+
+        rnvPopularForm(_rnvNota);
+    } else {
+        // Tenta carregar inteiramente do localStorage
+        try {
+            const saved = localStorage.getItem('nfe_payload_' + id);
+            if (saved) {
+                const original = JSON.parse(saved);
+                _rnvNota = { id, status: 'rejeitado', ...original, infNFe: original.infNFe };
+                rnvPopularForm(_rnvNota);
+                rnvMostrarAlert('Dados carregados do envio original salvo localmente.', 'warning');
+            } else {
+                rnvMostrarAlert('Não foi possível carregar os dados da nota. Preencha manualmente.', 'warning');
+            }
+        } catch(e) {
+            rnvMostrarAlert('Não foi possível carregar os dados da nota. Preencha manualmente.', 'warning');
+        }
+    }
+
+    // Populate events
+    if (eventosData.status === 'fulfilled' && eventosData.value) {
+        rnvRenderizarEventos(eventosData.value);
+    }
+
+    rnvRecalc();
+}
+
+function rnvPopularForm(nota) {
+    // Inicializa dropdown CST/CSOSN da modal se ainda não foi preenchido
+    if (!document.getElementById('rnvCSTGlobal')?.options.length) {
+        rnvAtualizarCST();
+    }
+
+    const inf = nota.infNFe || {};
+    const ide  = inf.ide || {};
+    // emit/dest: tenta infNFe primeiro, depois nível raiz da nota
+    const emit = inf.emit || {};
+    const destApi = nota.destinatario || {};          // nível raiz: {cpf_cnpj, nome, ...}
+    const dest = inf.dest || {};
+
+    document.getElementById('rnvSerie').value = ide.serie || nota.serie || 1;
+    document.getElementById('rnvNNF').value   = ide.nNF   || nota.numero || '';
+    document.getElementById('rnvFin').value   = ide.finNFe || '1';
+
+    // Emitente: infNFe.emit tem CNPJ, ou extrai da chave
+    const cnpjEmit = emit.CNPJ || emit.CPF || (nota.chave?.length === 44 ? nota.chave.substring(6, 20) : '');
+    // Destinatário: tenta infNFe.dest, depois nota.destinatario (nível raiz da API)
+    const cnpjDest = dest.CNPJ || dest.CPF
+        || (destApi.cpf_cnpj ? destApi.cpf_cnpj.replace(/\D/g, '') : '');
+    const nomeEmit = emit.xNome || '';
+
+    const fmtCnpj = c => c.length === 14
+        ? c.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+        : c.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+
+    // Emitente também pode vir de nota.autorizacao.autor.cpf_cnpj
+    const cnpjEmitFinal = cnpjEmit || (nota.autorizacao?.autor?.cpf_cnpj || '').replace(/\D/g, '');
+    document.getElementById('rnvEmitDisplay').value = cnpjEmitFinal
+        ? fmtCnpj(cnpjEmitFinal) + (nomeEmit ? ' — ' + nomeEmit : '')
+        : (nomeEmit || 'Emitente não identificado');
+
+    // Carrega dados cadastrais do emitente a partir do dropdown principal
+    _rnvEmit = null;
+    if (cnpjEmitFinal) {
+        const dropEmit = document.getElementById('dropEmit');
+        const opt = dropEmit
+            ? Array.from(dropEmit.options).find(o => o.value.replace(/\D/g,'') === cnpjEmitFinal)
+            : null;
+        if (opt) {
+            _rnvEmit = {
+                uf:   opt.dataset.uf   || '',
+                cMun: opt.dataset.cmun || '',
+                xMun: opt.dataset.xmun || '',
+                xLgr: opt.dataset.xlgr || '',
+                nro:  opt.dataset.nro  || 'SN',
+                xBairro: opt.dataset.xbairro || '',
+                CEP: opt.dataset.cep  || '',
+                IE:  opt.dataset.ie   || '',
+                nome: opt.dataset.nome || opt.text || '',
+                cnpj: cnpjEmitFinal,
+            };
+        }
+    }
+
+    // Destinatário: preenche campo editável de CNPJ
+    if (cnpjDest) {
+        document.getElementById('rnvCnpjDest').value = fmtCnpj(cnpjDest);
+    }
+
+    document.getElementById('rnvInfoNota').textContent =
+        `ID: ${nota.id || _rnvId}  •  Chave: ${nota.chave ? nota.chave.slice(0,20) + '...' : 'N/D'}  •  Status: ${nota.status || 'rejeitado'}`;
+
+    // Items
+    const det = Array.isArray(inf.det) ? inf.det : (inf.det ? [inf.det] : []);
+    document.getElementById('rnvItens').innerHTML = '';
+    if (det.length > 0) {
+        det.forEach((d, i) => {
+            const p = d.prod || d;
+            rnvAddItem(
+                p.xProd || `Item ${i+1}`,
+                parseFloat(p.qCom || p.qTrib || 1),
+                parseFloat(p.vUnCom || p.vUnTrib || 0),
+                p.CFOP || '5102'
+            );
+        });
+    } else if (nota._infNFeSynthetic && (nota.valor_total || 0) > 0) {
+        // Nota rejeitada sem itens salvos — cria item placeholder com valor total
+        rnvAddItem('(Preencha a descrição do produto)', 1, parseFloat(nota.valor_total) || 0, '5102');
+        rnvMostrarAlert('⚠️ Os itens originais não estão disponíveis na API para notas rejeitadas. O valor total foi preservado. Ajuste a descrição, quantidade e CFOP antes de reenviar.', 'warning');
+    } else {
+        rnvAddItem();
+    }
+
+    // Regime tributário — herda da tela principal se disponível
+    const regimeMain = document.getElementById('regimeTrib')?.value || 'normal';
+    const rnvRegime  = document.getElementById('rnvRegimeTrib');
+    if (rnvRegime) { rnvRegime.value = regimeMain; rnvAtualizarCST(); }
+
+    // CST/CSOSN — herda da tela principal
+    const cstMain = document.getElementById('cstGlobal')?.value || '00';
+    const rnvCST  = document.getElementById('rnvCSTGlobal');
+    if (rnvCST) {
+        const opt = Array.from(rnvCST.options).find(o => o.value === cstMain);
+        if (opt) { rnvCST.value = cstMain; rnvToggleAliqICMS(); }
+    }
+
+    // Tax rates from ICMSTot (reverse-engineer from totals) or inherit from main screen
+    const tot = inf.total?.ICMSTot || inf.ICMSTot || {};
+    const vProdTot = parseFloat(tot.vProd || 0) || 1;
+    const getEl = id => document.getElementById(id);
+
+    if (tot.vICMS && vProdTot) getEl('rnvPICMS').value    = ((parseFloat(tot.vICMS)    / vProdTot) * 100).toFixed(2);
+    else getEl('rnvPICMS').value = document.getElementById('pICMSGlobal')?.value || '18';
+
+    if (tot.vPIS && vProdTot)  getEl('rnvPPIS').value     = ((parseFloat(tot.vPIS)     / vProdTot) * 100).toFixed(2);
+    else getEl('rnvPPIS').value = document.getElementById('pPISGlobal')?.value || '1.65';
+
+    if (tot.vCOFINS && vProdTot) getEl('rnvPCOFINS').value = ((parseFloat(tot.vCOFINS) / vProdTot) * 100).toFixed(2);
+    else getEl('rnvPCOFINS').value = document.getElementById('pCOFINSGlobal')?.value || '7.60';
+
+    if (tot.vIPI && vProdTot)  getEl('rnvPIPI').value     = ((parseFloat(tot.vIPI)     / vProdTot) * 100).toFixed(2);
+    else getEl('rnvPIPI').value = document.getElementById('pIPIGlobal')?.value || '0';
+
+    if (tot.vST && vProdTot)   getEl('rnvPST').value      = ((parseFloat(tot.vST)      / vProdTot) * 100).toFixed(2);
+    else getEl('rnvPST').value = document.getElementById('pSTGlobal')?.value || '0';
+
+    getEl('rnvVDesc').value  = parseFloat(tot.vDesc  || 0).toFixed(2);
+    getEl('rnvVFCP').value   = parseFloat(tot.vFCPST || tot.vFCP || 0).toFixed(2);
+    getEl('rnvVFrete').value = parseFloat(tot.vFrete || 0).toFixed(2);
+    getEl('rnvVSeg').value   = parseFloat(tot.vSeg   || 0).toFixed(2);
+    getEl('rnvVOutro').value = parseFloat(tot.vOutro || 0).toFixed(2);
+}
+
+function rnvAddItem(xProd = '', qCom = 1, vUnCom = 0, cfop = '5102') {
+    const container = document.getElementById('rnvItens');
+    const row = document.createElement('div');
+    row.className = 'rnv-item-row';
+    row.innerHTML = `
+        <input type="text"   class="rnv-xProd" value="${xProd.replace(/"/g, '&quot;')}" placeholder="Descrição do produto">
+        <input type="number" class="rnv-qCom"  value="${qCom}"   min="0.001" step="any" oninput="rnvRecalc()">
+        <input type="number" class="rnv-vUn"   value="${vUnCom}" min="0"     step="any" oninput="rnvRecalc()">
+        <input type="text"   class="rnv-cfop"  value="${cfop}"   list="cfop-datalist" placeholder="5102">
+        <button class="btn btn-danger btn-icon" style="padding:5px 7px; font-size:11px;" onclick="this.closest('.rnv-item-row').remove(); rnvRecalc()">✕</button>
+    `;
+    container.appendChild(row);
+    rnvRecalc();
+}
+
+const RNV_CST_NORMAL = [
+    '00 - Tributado integral','10 - Trib. c/ ST','20 - Redução BC','30 - Isento c/ ST',
+    '40 - Isento','41 - Não tributado','50 - Suspensão','51 - Dif. Alíquota',
+    '60 - ICMS cobrado por ST','70 - Redução BC c/ ST','90 - Outros'
+];
+const RNV_CST_SIMPLES = [
+    '101 - Perm. aprop. créd.','102 - Imp. créd.','103 - Isen. ICMS p/ faixa rec.',
+    '201 - Trib. c/ ST e créd.','202 - Trib. c/ ST s/ créd.','203 - Isen. ICMS c/ ST',
+    '300 - Imune','400 - Não contribuinte','500 - ICMS cobrado p/ ST','900 - Outros'
+];
+const RNV_CST_SEM_VALOR = ['40','41','50','102','103','300','400','500'];
+
+function rnvAtualizarCST() {
+    const regime = document.getElementById('rnvRegimeTrib')?.value || 'normal';
+    const sel    = document.getElementById('rnvCSTGlobal');
+    const label  = document.getElementById('rnvLabelCST');
+    if (!sel) return;
+    const lista = regime === 'simples' ? RNV_CST_SIMPLES : RNV_CST_NORMAL;
+    sel.innerHTML = lista.map(c => `<option value="${c.split(' ')[0]}">${c}</option>`).join('');
+    if (label) label.textContent = regime === 'simples' ? 'CSOSN' : 'CST ICMS';
+    rnvToggleAliqICMS();
+    rnvRecalc();
+}
+
+function rnvToggleAliqICMS() {
+    const cst = document.getElementById('rnvCSTGlobal')?.value || '00';
+    const campo = document.getElementById('rnvCampoAliqICMS');
+    if (campo) campo.style.display = RNV_CST_SEM_VALOR.includes(cst) ? 'none' : '';
+}
+
+function rnvRecalc() {
+    let vProd = 0;
+    document.querySelectorAll('#rnvItens .rnv-item-row').forEach(row => {
+        const q = parseFloat(row.querySelector('.rnv-qCom')?.value) || 0;
+        const v = parseFloat(row.querySelector('.rnv-vUn')?.value)  || 0;
+        vProd += q * v;
+    });
+
+    const vDesc  = Math.max(0, parseFloat(document.getElementById('rnvVDesc')?.value)  || 0);
+    const vFrete = Math.max(0, parseFloat(document.getElementById('rnvVFrete')?.value) || 0);
+    const vSeg   = Math.max(0, parseFloat(document.getElementById('rnvVSeg')?.value)   || 0);
+    const vOutro = Math.max(0, parseFloat(document.getElementById('rnvVOutro')?.value) || 0);
+    const pIPI   = Math.max(0, parseFloat(document.getElementById('rnvPIPI')?.value)   || 0);
+    const pST    = Math.max(0, parseFloat(document.getElementById('rnvPST')?.value)    || 0);
+    const vFCP   = Math.max(0, parseFloat(document.getElementById('rnvVFCP')?.value)   || 0);
+
+    const vSubLiq = Math.max(0, vProd - vDesc);
+    const vIPI    = parseFloat((vSubLiq * (pIPI / 100)).toFixed(2));
+    const vST     = parseFloat((vSubLiq * (pST  / 100)).toFixed(2));
+    const vAcrescimos = vIPI + vST + vFCP + vFrete + vSeg + vOutro;
+    const vNF     = parseFloat((vSubLiq + vAcrescimos).toFixed(2));
+
+    const fmt = v => 'R$ ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+    const el = id => document.getElementById(id);
+    if (el('rnvSubtotal'))   el('rnvSubtotal').textContent   = fmt(vProd);
+    if (el('rnvDesconto'))   el('rnvDesconto').textContent   = fmt(vDesc);
+    if (el('rnvAcrescimos')) el('rnvAcrescimos').textContent = fmt(vAcrescimos);
+    if (el('rnvTotal'))      el('rnvTotal').textContent      = fmt(vNF);
+}
+
+function rnvRenderizarEventos(data) {
+    const lista = document.getElementById('rnvListaEventos');
+    const eventos = data.data || data.eventos || (Array.isArray(data) ? data : []);
+
+    if (!eventos.length) {
+        lista.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px;">Nenhum evento registrado para esta nota.</div>';
+        return;
+    }
+
+    lista.innerHTML = eventos.map(ev => {
+        const sefaz  = ev.sefaz || ev;
+        const codigo = String(sefaz.cStat || ev.codigo || '');
+        const motivo = sefaz.xMotivo || ev.motivo || ev.descricao || 'Sem descrição';
+        const data   = ev.data_evento || ev.data || '';
+        const dict   = REJEICAO_DICT[codigo] || {};
+        const tipo   = dict.tipo || (codigo === '100' ? 'autorizacao' : 'rejeicao');
+        const isOk   = tipo === 'autorizacao' || tipo === 'cancelamento';
+
+        return `
+        <div class="rnv-evento-item ${tipo}">
+            <div class="rnv-evento-header">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span class="rnv-evento-codigo ${isOk ? 'ok' : ''}">${codigo || '—'}</span>
+                    <div>
+                        <div class="rnv-evento-titulo">${dict.titulo || motivo}</div>
+                        <div class="rnv-evento-data">${data ? new Date(data).toLocaleString('pt-BR') : ''}</div>
+                    </div>
+                </div>
+                <span class="badge ${isOk ? 'badge-autorizado' : 'badge-rejeitado'}">${tipo}</span>
+            </div>
+            <div class="rnv-evento-descricao">${dict.descricao || motivo}</div>
+            ${dict.solucao ? `<div class="rnv-evento-solucao">${dict.solucao}</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+async function rnvReenviar() {
+    const btn = document.getElementById('rnvBtnReenviar');
+
+    // Validate
+    const itens = document.querySelectorAll('#rnvItens .rnv-item-row');
+    if (!itens.length) { rnvMostrarAlert('Adicione pelo menos um item antes de reenviar.', 'warning'); return; }
+
+    // Calculate totals
+    let vProd = 0, vBCTot = 0, vIcmsTot = 0, vPisTot = 0, vCofinsTot = 0, vIPITot = 0, vSTTot = 0;
+
+    const regime  = document.getElementById('rnvRegimeTrib')?.value || 'normal';
+    const isSimples = regime === 'simples';
+    const cstVal  = document.getElementById('rnvCSTGlobal')?.value || '00';
+    const semValor = RNV_CST_SEM_VALOR.includes(cstVal);
+    const pICMS   = semValor ? 0 : (parseFloat(document.getElementById('rnvPICMS').value)   || 0);
+    const pPIS    = parseFloat(document.getElementById('rnvPPIS').value)    || 0;
+    const pCOFINS = parseFloat(document.getElementById('rnvPCOFINS').value) || 0;
+    const pIPI    = parseFloat(document.getElementById('rnvPIPI').value)    || 0;
+    const pST     = parseFloat(document.getElementById('rnvPST').value)     || 0;
+    const vDesc   = parseFloat(document.getElementById('rnvVDesc').value)   || 0;
+    const vFCP    = parseFloat(document.getElementById('rnvVFCP').value)    || 0;
+    const vFrete  = parseFloat(document.getElementById('rnvVFrete').value)  || 0;
+    const vSeg    = parseFloat(document.getElementById('rnvVSeg').value)    || 0;
+    const vOutro  = parseFloat(document.getElementById('rnvVOutro').value)  || 0;
+
+    // Build payload context — needed inside the loop (DIFAL, idDest, etc.)
+    const inf     = _rnvNota?.infNFe || {};
+    const emit    = inf.emit || {};
+    const dest    = inf.dest || {};
+    const destApi = _rnvNota?.destinatario || {};
+    const ide     = inf.ide  || {};
+
+    const serie  = parseInt(document.getElementById('rnvSerie').value) || 1;
+    const nNF    = parseInt(document.getElementById('rnvNNF').value)   || 1;
+    const finNFe = parseInt(document.getElementById('rnvFin').value)   || 1;
+
+    const ufEmit = _rnvEmit?.uf || emit.enderEmit?.UF || ide.UF || 'SP';
+    const cUF    = UF_PARA_CUF[ufEmit] || 35;
+    const cMunFG = _rnvEmit?.cMun || emit.enderEmit?.cMun || ide.cMunFG || '3550308';
+
+    const cnpjDestRaw = document.getElementById('rnvCnpjDest').value.replace(/\D/g, '')
+        || (dest.CNPJ || dest.CPF || destApi.cpf_cnpj || '').replace(/\D/g, '');
+
+    if (!cnpjDestRaw || cnpjDestRaw.length < 11) {
+        rnvMostrarAlert('Informe o CNPJ/CPF do destinatário antes de reenviar.', 'warning');
+        btn.disabled  = false;
+        btn.innerText = '↩️ Reenviar Nota';
+        return;
+    }
+
+    const nomeDestFinal = dest.xNome || destApi.nome || destApi.razao_social || 'DESTINATARIO';
+    const destPayload = (dest.CNPJ === cnpjDestRaw || dest.CPF === cnpjDestRaw)
+        ? dest
+        : {
+            [cnpjDestRaw.length === 11 ? 'CPF' : 'CNPJ']: cnpjDestRaw,
+            xNome: nomeDestFinal,
+            indIEDest: 9,
+            enderDest: dest.enderDest || {
+                xLgr: 'NAO INFORMADO', nro: 'SN', xBairro: 'CENTRO',
+                cMun: 3550308, xMun: 'SAO PAULO', UF: 'SP', CEP: '01001000'
+            }
+          };
+
+    const primeiroCFOP = document.querySelector('#rnvItens .rnv-cfop')?.value || '5102';
+    const cfopPrefixo  = primeiroCFOP.charAt(0);
+    const idDest       = cfopPrefixo === '6' ? 2 : cfopPrefixo === '7' ? 3 : 1;
+    const indFinalRnv  = idDest === 2 && (destPayload.indIEDest === 9 || destPayload.indIEDest === '9') ? 1 : 0;
+
+    const det = [];
+    itens.forEach((row, i) => {
+        const xProd  = row.querySelector('.rnv-xProd').value.trim() || `Item ${i+1}`;
+        const qCom   = parseFloat(row.querySelector('.rnv-qCom').value) || 1;
+        const vUnCom = parseFloat(row.querySelector('.rnv-vUn').value)  || 0;
+        const cfop   = (row.querySelector('.rnv-cfop').value || '5102').replace(/\D/g,'');
+        const vP     = parseFloat((qCom * vUnCom).toFixed(2));
+        const vI     = parseFloat((vP * pICMS   / 100).toFixed(2));
+        const vPISi  = parseFloat((vP * pPIS    / 100).toFixed(2));
+        const vCOFi  = parseFloat((vP * pCOFINS / 100).toFixed(2));
+        const vIPIi  = parseFloat((vP * pIPI    / 100).toFixed(2));
+
+        vProd    += vP;
+        if (!semValor) vBCTot += vP;
+        vIcmsTot += vI;
+        vPisTot  += vPISi;
+        vCofinsTot += vCOFi;
+        vIPITot  += vIPIi;
+
+        let icmsNode;
+        if (isSimples) {
+            if (semValor) {
+                icmsNode = { [`ICMSSN${cstVal}`]: { orig: 0, CSOSN: cstVal } };
+            } else {
+                icmsNode = { [`ICMSSN${cstVal}`]: { orig: 0, CSOSN: cstVal, modBC: 3, vBC: vP, pCredSN: pICMS, vCredICMSSN: vI } };
+            }
+        } else {
+            if (semValor) {
+                icmsNode = { [`ICMS${cstVal}`]: { orig: 0, CST: cstVal } };
+            } else {
+                icmsNode = { ICMS00: { orig: 0, CST: cstVal, modBC: 3, vBC: vP, pICMS, vICMS: vI } };
+            }
+        }
+        const vSTi = parseFloat((vP * pST / 100).toFixed(2));
+        vSTTot += vSTi;
+        const impostoItem = /** @type {any} */ ({
+            ICMS: icmsNode,
+            PIS:  { PISAliq: { CST: '01', vBC: vP, pPIS,    vPIS:    vPISi  } },
+            COFINS: { COFINSAliq: { CST: '01', vBC: vP, pCOFINS, vCOFINS: vCOFi } },
+            ...(pST  > 0 ? { ICMSST: { vBCST: vP, pICMSST: pST, vICMSST: vSTi } } : {}),
+            ...(pIPI > 0 ? { IPI: { cEnq: '999', IPITrib: { CST: '50', vBC: vP, pIPI, vIPI: vIPIi } } } : {})
+        });
+        // DIFAL vai apenas em total.ICMSUFDest, NÃO no imposto do item
+        det.push({
+            nItem: i + 1,
+            prod: {
+                cProd: String(i + 1).padStart(3, '0'),
+                cEAN: 'SEM GTIN', xProd,
+                NCM: '21069090',
+                CFOP: cfop,
+                uCom: 'UN', qCom, vUnCom,
+                vProd: vP,
+                cEANTrib: 'SEM GTIN', uTrib: 'UN',
+                qTrib: qCom, vUnTrib: vUnCom,
+                indTot: 1
+            },
+            imposto: impostoItem
+        });
+    });
+
+    const vSubLiq = Math.max(0, vProd - vDesc);
+    const vNF     = parseFloat((vSubLiq + vIPITot + vSTTot + vFCP + vFrete + vSeg + vOutro).toFixed(2));
+
+    // Validate vNF > 0
+    if (vNF <= 0) { rnvMostrarAlert('O valor total da nota deve ser maior que zero.', 'warning'); return; }
+
+    const payload = {
+        ambiente: "homologacao",
+        referencia: "RNV-" + Date.now(),
+        infNFe: {
+            versao: "4.00",
+            ide: {
+                cUF, natOp: finNFe === 4 ? 'DEVOLUCAO' : 'VENDA',
+                mod: 55, serie, nNF,
+                dhEmi: (() => { const d = new Date(Date.now() - 3*3600000); return d.toISOString().split('.')[0]+'-03:00'; })(),
+                tpNF: 1, idDest, cMunFG: parseInt(cMunFG),
+                tpImp: 1, tpEmis: 1, tpAmb: 2, finNFe,
+                indFinal: indFinalRnv, indPres: 1, procEmi: 0, verProc: 'Matrix_v60'
+            },
+            emit: emit.CNPJ || emit.CPF
+                ? { ...emit, enderEmit: { ...(emit.enderEmit || {}), UF: ufEmit, cMun: parseInt(cMunFG), xMun: _rnvEmit?.xMun || emit.enderEmit?.xMun || '', xLgr: _rnvEmit?.xLgr || emit.enderEmit?.xLgr || 'NAO INFORMADO', nro: _rnvEmit?.nro || emit.enderEmit?.nro || 'SN', xBairro: _rnvEmit?.xBairro || emit.enderEmit?.xBairro || 'CENTRO', CEP: _rnvEmit?.CEP || emit.enderEmit?.CEP || '' } }
+                : { CNPJ: (_rnvEmit?.cnpj || _rnvNota?.chave?.substring(6,20) || ''), xNome: _rnvEmit?.nome || 'EMITENTE', IE: _rnvEmit?.IE || '', enderEmit: { xLgr: _rnvEmit?.xLgr || 'NAO INFORMADO', nro: _rnvEmit?.nro || 'SN', xBairro: _rnvEmit?.xBairro || 'CENTRO', cMun: parseInt(cMunFG), xMun: _rnvEmit?.xMun || '', UF: ufEmit, CEP: _rnvEmit?.CEP || '' } },
+            dest: destPayload,
+            det,
+            total: {
+                ICMSTot: {
+                    vBC: parseFloat(vBCTot.toFixed(2)),
+                    vICMS: parseFloat(vIcmsTot.toFixed(2)),
+                    vICMSDeson: 0, vFCP: parseFloat(vFCP.toFixed(2)),
+                    vBCST: pST > 0 ? parseFloat(vProd.toFixed(2)) : 0,
+                    vST: parseFloat(vSTTot.toFixed(2)), vFCPST: 0, vFCPSTRet: 0,
+                    vProd: parseFloat(vProd.toFixed(2)),
+                    vFrete: parseFloat(vFrete.toFixed(2)),
+                    vSeg: parseFloat(vSeg.toFixed(2)),
+                    vDesc: parseFloat(vDesc.toFixed(2)),
+                    vII: 0,
+                    vIPI: parseFloat(vIPITot.toFixed(2)),
+                    vIPIDevol: 0,
+                    vPIS: parseFloat(vPisTot.toFixed(2)),
+                    vCOFINS: parseFloat(vCofinsTot.toFixed(2)),
+                    vOutro: parseFloat(vOutro.toFixed(2)),
+                    vNF
+                }
+            },
+            transp: { modFrete: 9 },
+            pag: { detPag: [{ tPag: '01', vPag: vNF }] }
+        }
+    };
+
+    btn.disabled  = true;
+    btn.innerText = '⏳ Reenviando...';
+    rnvOcultarAlert();
+
+    try {
+        // Cria nova NF-e com mesmo série/número (chave muda por dhEmi) e emite
+        const resp = await fetch('reenviar_nfe.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: _rnvId, payload })
+        });
+        const res = await resp.json();
+
+        // Salva payload no localStorage com o novo ID
+        if (res.id) {
+            try { localStorage.setItem('nfe_payload_' + res.id, JSON.stringify(payload)); } catch(_){}
+        }
+
+        // Atualiza _rnvId com o novo ID (nota antiga foi deletada, nova foi criada)
+        if (res.id) _rnvId = res.id;
+        const nfeId = _rnvId;
+        if (res.status === 'autorizado') {
+            rnvMostrarAlert('✅ Nota autorizada com sucesso!', 'success');
+            showToast('NF-e autorizada!', 'success');
+            // Unlock DANFE tab
+            document.getElementById('rnvTabBtnDanfe').disabled = false;
+            document.getElementById('rnvDanfeLock').style.display = 'none';
+            document.getElementById('rnvDanfeContent').style.display = '';
+            document.getElementById('rnvDanfeFrame').src = `danfe.php?id=${nfeId}`;
+            document.getElementById('rnvBtnBaixarDanfe').href = `danfe.php?id=${nfeId}`;
+            document.getElementById('rnvBtnBaixarXml').href  = `download_xml.php?id=${nfeId}`;
+            rnvTrocarAba('danfe');
+            // Refresh main table
+            if (typeof buscarNotas === 'function') buscarNotas(_skipAtual);
+        } else {
+            // Show new rejection
+            const errMsg = res.mensagem_sefaz || res.motivo || res.error?.message || res.message || JSON.stringify(res).substring(0, 200);
+            const cStat  = String(res.status_sefaz || res.codigo_status || '');
+            const dict   = REJEICAO_DICT[cStat] || {};
+            rnvMostrarAlert(`❌ ${dict.titulo || 'Rejeição'}: ${dict.descricao || errMsg}${dict.solucao ? ' — ' + dict.solucao : ''}`, 'error');
+            // Reload events
+            const evResp = await fetch(`eventos_nfe.php?id=${_rnvId}`);
+            const evData = await evResp.json();
+            rnvRenderizarEventos(evData);
+            rnvTrocarAba('eventos');
+        }
+    } catch(e) {
+        rnvMostrarAlert('Falha na conexão ao reenviar. Verifique o servidor e tente novamente.', 'error');
+    } finally {
+        btn.disabled  = false;
+        btn.innerText = '↩️ Reenviar Nota';
+    }
+}
+
+function rnvTrocarAba(aba) {
+    ['form','eventos','danfe'].forEach(a => {
+        document.getElementById(`rnvAba${a.charAt(0).toUpperCase()+a.slice(1)}`)?.classList.toggle('active', a === aba);
+        document.getElementById(`rnvTabBtn${a.charAt(0).toUpperCase()+a.slice(1)}`)?.classList.toggle('active', a === aba);
+    });
+}
+
+function rnvSelecionarDest(sel) {
+    if (sel.value) {
+        const cnpj = sel.value.replace(/\D/g, '');
+        document.getElementById('rnvCnpjDest').value = cnpj.length === 14
+            ? cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+            : cnpj.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    }
+}
+
+async function rnvVerDadosEmitente() {
+    // Extrai CNPJ do campo de exibição ou do _rnvNota
+    const cnpjRaw = (_rnvNota?.infNFe?.emit?.CNPJ
+        || (_rnvNota?.chave?.length === 44 ? _rnvNota.chave.substring(6, 20) : ''))
+        .replace(/\D/g, '');
+
+    if (!cnpjRaw) {
+        rnvMostrarAlert('Não foi possível identificar o CNPJ do emitente.', 'warning');
+        return;
+    }
+
+    rnvMostrarAlert('Carregando dados cadastrais...', 'info');
+
+    try {
+        const resp = await fetch(`cadastrar_empresa.php?cpf_cnpj=${cnpjRaw}`);
+        const emp  = await resp.json();
+
+        if (emp.error || resp.status >= 400) {
+            rnvMostrarAlert('Erro ao buscar empresa: ' + (emp.error?.message || emp.error || 'desconhecido'), 'error');
+            return;
+        }
+
+        const ie   = emp.inscricoes_estaduais?.[0];
+        const end  = emp.endereco || {};
+        const linhas = [
+            `Razão Social: ${emp.nome_razao_social || '-'}`,
+            `CNPJ: ${cnpjRaw.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')}`,
+            `IE: ${ie ? `${ie.inscricao_estadual} (${ie.uf}) — ${ie.ativa ? 'Ativa' : 'Inativa'}` : 'Não cadastrada'}`,
+            `Regime: ${emp.regime_tributario || '-'}`,
+            `Email: ${emp.email || '-'}`,
+            `Endereço: ${end.logradouro || ''}, ${end.numero || ''} — ${end.municipio || ''} / ${end.uf || ''} — CEP ${end.cep || '-'}`,
+        ];
+
+        const al  = document.getElementById('rnvAlert');
+        const icon = document.getElementById('rnvAlertIcon');
+        const txt  = document.getElementById('rnvAlertMsg');
+        al.className = 'emp-alert info';
+        icon.textContent = '🏢';
+        txt.innerHTML = linhas.map(l => l.replace(/&/g,'&amp;').replace(/</g,'&lt;')).join('<br>');
+        al.style.display = '';
+        return;
+    } catch(e) {
+        rnvMostrarAlert('Falha ao consultar dados do emitente: ' + e.message, 'error');
+    }
+}
+
+function rnvFechar() {
+    document.getElementById('modalReenvioNFe').style.display = 'none';
+    document.body.style.overflow = '';
+    _rnvNota = null;
+    _rnvId   = '';
+    _rnvEmit = null;
+}
+
+function rnvMostrarAlert(msg, tipo) {
+    const al   = document.getElementById('rnvAlert');
+    const icon = document.getElementById('rnvAlertIcon');
+    const txt  = document.getElementById('rnvAlertMsg');
+    const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+    al.className = `emp-alert ${tipo}`;
+    icon.textContent = icons[tipo] || 'ℹ️';
+    txt.textContent  = msg;
+    al.style.display = '';
+    al.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function rnvOcultarAlert() {
+    document.getElementById('rnvAlert').style.display = 'none';
+}
+
+// Close on overlay click
+document.getElementById('modalReenvioNFe').addEventListener('click', function(e) {
+    if (e.target === this) rnvFechar();
 });
 
 // Drag & Drop na upload area

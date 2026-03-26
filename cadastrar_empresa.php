@@ -13,6 +13,20 @@ require_once __DIR__ . '/auth_nuvem.php';
 
 $method = strtoupper($_SERVER['REQUEST_METHOD']);
 
+// GET — buscar dados cadastrais de uma empresa pelo CNPJ
+if ($method === 'GET') {
+    $cpfCnpj = preg_replace('/\D/', '', $_GET['cpf_cnpj'] ?? '');
+    if ($cpfCnpj === '') {
+        http_response_code(400);
+        echo json_encode(['error' => 'Parâmetro cpf_cnpj é obrigatório.']);
+        exit;
+    }
+    $result = nuvemFiscalRequest('GET', '/empresas/' . $cpfCnpj);
+    http_response_code($result['status']);
+    echo json_encode($result['body']);
+    exit;
+}
+
 if (!in_array($method, ['POST', 'PUT'], true)) {
     http_response_code(405);
     echo json_encode(['error' => 'Method Not Allowed. Use POST (criar) ou PUT (atualizar).']);

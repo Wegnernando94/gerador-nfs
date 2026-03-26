@@ -110,6 +110,7 @@
 
             <div class="field">
                 <label>Selecionar Empresa <span class="tip" data-tip="Escolha a empresa emitente. Confirme se o CNPJ e a Inscrição Estadual estão ativos na SEFAZ — uma IE cancelada ou suspensa resulta em rejeição imediata da nota.">?</span></label>
+                <input type="text" id="buscaEmit" placeholder="Buscar por nome ou CNPJ..." oninput="filtrarDropdown('dropEmit', this.value)" style="margin-bottom:4px;">
                 <select id="dropEmit" onchange="selecionarEmpresa(this, 'emit')">
                     <option value="">⏳ Carregando empresas...</option>
                 </select>
@@ -144,6 +145,7 @@
 
             <div class="field">
                 <label>Selecionar Empresa <span class="tip" data-tip="Escolha o destinatário da nota. Verifique especialmente a UF — ela determina a alíquota interestadual de ICMS aplicada automaticamente (7% ou 12% conforme a região).">?</span></label>
+                <input type="text" id="buscaDest" placeholder="Buscar por nome ou CNPJ..." oninput="filtrarDropdown('dropDest', this.value)" style="margin-bottom:4px;">
                 <select id="dropDest" onchange="selecionarEmpresa(this, 'dest')">
                     <option value="">⏳ Carregando empresas...</option>
                 </select>
@@ -386,15 +388,20 @@
         <div class="filtros-consulta">
             <div class="field" style="flex:2; min-width:200px;">
                 <label>Empresa Emitente</label>
+                <input type="text" id="buscaFiltroEmpresa" placeholder="Buscar por nome ou CNPJ..." oninput="filtrarDropdown('filtroEmpresa', this.value)" style="margin-bottom:4px;">
                 <select id="filtroEmpresa" onchange="buscarNotas(0)" style="width:100%;">
                     <option value="">Selecione a empresa...</option>
                 </select>
             </div>
             <div class="field">
+                <label>Buscar (Nº, CNPJ ou Dest.)</label>
+                <input type="text" id="filtroNumero" placeholder="Ex: 123 ou razão social" oninput="filtrarTabelaNotas()" style="min-width:140px;">
+            </div>
+            <div class="field">
                 <label>Status</label>
                 <select id="filtroStatus" onchange="buscarNotas(0)" style="min-width:130px;">
                     <option value="">Todos</option>
-                    <option value="autorizado">✅ Autorizado</option>
+                    <option value="autorizado" selected>✅ Autorizado</option>
                     <option value="rejeitado">❌ Rejeitado</option>
                     <option value="pendente">⏳ Pendente</option>
                     <option value="cancelado">🚫 Cancelado</option>
@@ -403,8 +410,8 @@
             <div class="field">
                 <label>Por página</label>
                 <select id="filtroTop" onchange="buscarNotas(0)" style="min-width:80px;">
-                    <option value="20">20</option>
-                    <option value="50" selected>50</option>
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
                 </select>
             </div>
             <div style="align-self:flex-end;">
@@ -424,7 +431,7 @@
                         <th>Emissão</th>
                         <th>Série / Nº</th>
                         <th>Emitente (CNPJ)</th>
-                        <th>Referência</th>
+                        <th>Destinatário</th>
                         <th>Valor</th>
                         <th>Status</th>
                         <th>Chave</th>
@@ -681,6 +688,227 @@
         </div>
 
     </div>
+</div>
+
+<!-- MODAL REENVIO NF-e -->
+<div id="modalReenvioNFe">
+  <div class="modal-box modal-reenvio-box">
+
+    <!-- Header -->
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">↩️ Reenviar NF-e</div>
+        <div class="rnv-info-nota" id="rnvInfoNota">Carregando...</div>
+      </div>
+      <button class="btn btn-ghost" onclick="rnvFechar()">✕ Fechar</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="emp-tabs" style="margin-top:16px;">
+      <button class="emp-tab active" id="rnvTabBtnForm" onclick="rnvTrocarAba('form')">
+        <span class="emp-tab-num">1</span> Ajuste
+      </button>
+      <button class="emp-tab" id="rnvTabBtnEventos" onclick="rnvTrocarAba('eventos')">
+        <span class="emp-tab-num">2</span> Rejeições SEFAZ
+      </button>
+      <button class="emp-tab" id="rnvTabBtnDanfe" onclick="rnvTrocarAba('danfe')" disabled>
+        <span class="emp-tab-num">3</span> DANFE / XML
+      </button>
+    </div>
+
+    <!-- Alert -->
+    <div id="rnvAlert" class="emp-alert info" style="display:none; margin-bottom:14px;">
+      <span id="rnvAlertIcon">ℹ️</span>
+      <span id="rnvAlertMsg"></span>
+    </div>
+
+    <!-- ABA 1 — AJUSTE -->
+    <div id="rnvAbaForm" class="emp-tab-content active">
+
+      <!-- Cabeçalho da nota -->
+      <div class="emp-section">
+        <div class="emp-section-title">📋 Identificação</div>
+        <div class="grid-4" style="gap:10px;">
+          <div class="field" style="margin:0;">
+            <label>Série</label>
+            <input type="number" id="rnvSerie" min="1" max="999" oninput="rnvRecalc()">
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Número</label>
+            <input type="number" id="rnvNNF" min="1" oninput="rnvRecalc()">
+          </div>
+          <div class="field" style="margin:0; grid-column: span 2;">
+            <label>Finalidade</label>
+            <select id="rnvFin">
+              <option value="1">1 - Normal</option>
+              <option value="2">2 - Complementar</option>
+              <option value="3">3 - Ajuste</option>
+              <option value="4">4 - Devolução</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid-2" style="gap:10px; margin-top:10px;">
+          <div class="field" style="margin:0;">
+            <label>Emitente</label>
+            <div style="display:flex; gap:6px;">
+              <input type="text" id="rnvEmitDisplay" readonly style="opacity:.6; cursor:default; flex:1;">
+              <button class="btn btn-ghost" style="white-space:nowrap; font-size:0.8em; padding:4px 10px;" onclick="rnvVerDadosEmitente()" title="Ver dados cadastrais do emitente">🏢 Ver Cadastro</button>
+            </div>
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Destinatário — CNPJ <span style="color:var(--red);font-weight:700;">*</span></label>
+            <div style="display:flex; gap:6px;">
+              <input type="text" id="rnvCnpjDest" placeholder="00.000.000/0000-00" maxlength="18"
+                     oninput="this.value=this.value.replace(/\D/g,'').replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}).*/,'$1.$2.$3/$4-$5')">
+              <select id="rnvDestSelect" style="flex:1; min-width:0;"
+                      onchange="rnvSelecionarDest(this)">
+                <option value="">— ou selecione empresa cadastrada —</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Itens -->
+      <div class="emp-section">
+        <div class="emp-section-title" style="display:flex; justify-content:space-between; align-items:center;">
+          <span>📦 Itens</span>
+          <button class="btn btn-ghost" style="padding:4px 10px; font-size:11px;" onclick="rnvAddItem()">+ Item</button>
+        </div>
+        <div class="rnv-item-header">
+          <span>Descrição</span><span>Qtd</span><span>Vl. Unit (R$)</span><span>CFOP</span><span></span>
+        </div>
+        <div id="rnvItens"></div>
+      </div>
+
+      <!-- Tributação -->
+      <div class="emp-section">
+        <div class="emp-section-title">🧮 Tributação Global <small style="font-weight:400;color:var(--text2);font-size:0.8em;">— aplicada a todos os itens</small></div>
+
+        <!-- Linha 1: Regime + CST + ICMS + PIS + COFINS -->
+        <div class="grid-5" style="gap:10px; margin-bottom:10px;">
+          <div class="field" style="margin:0;">
+            <label>Regime Tributário</label>
+            <select id="rnvRegimeTrib" onchange="rnvAtualizarCST()">
+              <option value="normal">Regime Normal</option>
+              <option value="simples">Simples Nacional</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0;">
+            <label id="rnvLabelCST">CST ICMS</label>
+            <select id="rnvCSTGlobal" onchange="rnvToggleAliqICMS(); rnvRecalc()"></select>
+          </div>
+          <div class="field" style="margin:0;" id="rnvCampoAliqICMS">
+            <label>% ICMS</label>
+            <input type="number" id="rnvPICMS" value="18" min="0" max="100" step="0.01" oninput="rnvRecalc()">
+          </div>
+          <div class="field" style="margin:0;">
+            <label>% PIS</label>
+            <input type="number" id="rnvPPIS" value="1.65" min="0" max="100" step="0.01" oninput="rnvRecalc()">
+          </div>
+          <div class="field" style="margin:0;">
+            <label>% COFINS</label>
+            <input type="number" id="rnvPCOFINS" value="7.60" min="0" max="100" step="0.01" oninput="rnvRecalc()">
+          </div>
+        </div>
+
+        <!-- Linha 2: IPI + ICMS-ST + Desconto + FCP -->
+        <div class="grid-4" style="gap:10px; margin-bottom:10px;">
+          <div class="field" style="margin:0;">
+            <label>% IPI</label>
+            <input type="number" id="rnvPIPI" value="0" min="0" step="0.01" oninput="rnvRecalc()">
+          </div>
+          <div class="field" style="margin:0;">
+            <label>% ICMS-ST</label>
+            <input type="number" id="rnvPST" value="0" min="0" step="0.01" oninput="rnvRecalc()">
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Desconto (R$)</label>
+            <input type="number" id="rnvVDesc" value="0" min="0" step="0.01" oninput="rnvRecalc()">
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Valor FCP (R$)</label>
+            <input type="number" id="rnvVFCP" value="0" min="0" step="0.01" oninput="rnvRecalc()">
+          </div>
+        </div>
+
+        <!-- Linha 3: Frete + Seguro + Outras -->
+        <div class="grid-4" style="gap:10px;">
+          <div class="field" style="margin:0;">
+            <label>Frete (R$)</label>
+            <input type="number" id="rnvVFrete" value="0" min="0" step="0.01" oninput="rnvRecalc()">
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Seguro (R$)</label>
+            <input type="number" id="rnvVSeg" value="0" min="0" step="0.01" oninput="rnvRecalc()">
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Outras Despesas (R$)</label>
+            <input type="number" id="rnvVOutro" value="0" min="0" step="0.01" oninput="rnvRecalc()">
+          </div>
+          <div></div>
+        </div>
+      </div>
+
+      <!-- Totais -->
+      <div class="rnv-totals">
+        <div class="rnv-total-item">
+          <label>Subtotal (vProd)</label>
+          <span id="rnvSubtotal">R$ 0,00</span>
+        </div>
+        <div class="rnv-total-item desconto">
+          <label>— Desconto</label>
+          <span id="rnvDesconto">R$ 0,00</span>
+        </div>
+        <div class="rnv-total-item">
+          <label>+ Acréscimos</label>
+          <span id="rnvAcrescimos">R$ 0,00</span>
+        </div>
+        <div class="rnv-total-item destaque">
+          <label>Total NF-e (vNF)</label>
+          <span id="rnvTotal">R$ 0,00</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ABA 2 — EVENTOS -->
+    <div id="rnvAbaEventos" class="emp-tab-content">
+      <div id="rnvListaEventos" style="padding:8px 0;">
+        <div style="text-align:center; color:var(--text2); padding:40px;">Carregando eventos...</div>
+      </div>
+    </div>
+
+    <!-- ABA 3 — DANFE -->
+    <div id="rnvAbaDanfe" class="emp-tab-content">
+      <div id="rnvDanfeLock" class="rnv-danfe-lock">
+        <div class="lock-icon">🔒</div>
+        <p>DANFE disponível somente após a nota ser <strong>Autorizada</strong>.</p>
+        <p style="font-size:11px; color:var(--text3);">Corrija a nota e clique em "Reenviar" para tentar a autorização.</p>
+      </div>
+      <div id="rnvDanfeContent" style="display:none;">
+        <div style="display:flex; gap:10px; margin-bottom:14px;">
+          <a id="rnvBtnBaixarDanfe" href="#" class="btn btn-primary" download>⬇ Baixar DANFE (PDF)</a>
+          <a id="rnvBtnBaixarXml" href="#" class="btn btn-ghost" download>⬇ Baixar XML</a>
+        </div>
+        <iframe id="rnvDanfeFrame" src="" style="width:100%; height:500px; border:none; border-radius:var(--radius); background:#fff;"></iframe>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
+      <button class="btn btn-ghost" onclick="rnvFechar()">✕ Fechar</button>
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-ghost" onclick="rnvTrocarAba('eventos')" id="rnvBtnVerEventos">
+          📋 Ver Rejeições
+        </button>
+        <button class="btn btn-success" id="rnvBtnReenviar" onclick="rnvReenviar()">
+          ↩️ Reenviar Nota
+        </button>
+      </div>
+    </div>
+
+  </div>
 </div>
 
 <script src="script.js"></script>

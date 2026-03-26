@@ -1153,3 +1153,168 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
   .action-bar-value { font-size: 18px; }
   .action-bar-breakdown { margin-right: 0; padding-right: 0; border-right: none; flex-wrap: wrap; gap: 10px; }
 }
+
+/* =============================================
+   MODAL REENVIO NF-e
+   ============================================= */
+#modalReenvioNFe {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.8);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 400;
+  overflow-y: auto;
+  padding: 24px 16px;
+  animation: fadeIn .2s ease;
+}
+
+.modal-reenvio-box {
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 28px;
+  box-shadow: var(--shadow);
+  animation: slideInModal .25s ease;
+}
+
+.rnv-info-nota {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Rejeição highlight */
+.rnv-evento-item {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.rnv-evento-item.rejeicao { border-left: 3px solid var(--red); }
+.rnv-evento-item.autorizacao { border-left: 3px solid var(--green); }
+.rnv-evento-item.pendente { border-left: 3px solid var(--orange); }
+.rnv-evento-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.rnv-evento-codigo {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--red);
+}
+.rnv-evento-codigo.ok { color: var(--green); }
+.rnv-evento-titulo { font-weight: 600; font-size: 13px; color: var(--text); }
+.rnv-evento-descricao { font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+.rnv-evento-solucao {
+  background: var(--blue-dim);
+  border: 1px solid var(--blue);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--blue);
+}
+.rnv-evento-solucao::before { content: '💡 Solução: '; font-weight: 600; }
+.rnv-evento-data { font-size: 11px; color: var(--text3); font-family: monospace; }
+
+/* Items editáveis */
+.rnv-item-row {
+  display: grid;
+  grid-template-columns: 2fr 80px 100px 90px 32px;
+  gap: 6px;
+  align-items: end;
+  margin-bottom: 6px;
+}
+.rnv-item-row input {
+  padding: 6px 8px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  width: 100%;
+}
+.rnv-item-row input:focus { outline: none; border-color: var(--blue); }
+.rnv-item-header {
+  display: grid;
+  grid-template-columns: 2fr 80px 100px 90px 32px;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 4px;
+  padding: 0 2px;
+}
+
+/* Totals bar inside reenvio modal */
+.rnv-totals {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-top: 14px;
+}
+.rnv-total-item label {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 4px;
+}
+.rnv-total-item span {
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text);
+}
+.rnv-total-item.destaque span { color: var(--blue); font-size: 18px; }
+.rnv-total-item.desconto span { color: var(--red); }
+
+/* DANFE locked state */
+.rnv-danfe-lock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 60px 20px;
+  color: var(--text2);
+  text-align: center;
+}
+.rnv-danfe-lock .lock-icon { font-size: 48px; opacity: .4; }
+.rnv-danfe-lock p { font-size: 13px; }
+
+/* Badge btn Reenviar na tabela */
+.btn-reenviar {
+  padding: 4px 10px;
+  font-size: 0.8em;
+  background: var(--red-dim);
+  color: var(--red);
+  border: 1px solid var(--red);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+  transition: var(--transition);
+}
+.btn-reenviar:hover { background: var(--red); color: #fff; }
+
+/* Highlight field with error */
+.rnv-field-error input,
+.rnv-field-error select { border-color: var(--red) !important; box-shadow: 0 0 0 2px var(--red-dim); }
