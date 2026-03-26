@@ -20,10 +20,10 @@ ServerSignature Off
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # Force HTTPS (respeitando proxy reverso como Render/Vercel)
-    RewriteCond %{HTTP_X_FORWARDED_PROTO} !=https
-    RewriteCond %{HTTPS} off
-    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+    # Force HTTPS — DESABILITADO TEMPORARIAMENTE (Render usa proxy reverso)
+    # Será habilitado após configurar X-Forwarded-Proto corretamente
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
     # Block access to internal folders
     RewriteRule ^config/  - [F,L]
@@ -42,7 +42,8 @@ ServerSignature Off
     php_flag  expose_php            Off
     php_flag  allow_url_fopen       Off
     php_value session.cookie_httponly 1
-    php_value session.cookie_secure   1
+    # Desabilitado em desenvolvimento/Render (HTTPS será forçado via proxy)
+    # php_value session.cookie_secure   1
     php_value session.cookie_samesite Strict
     php_value session.use_strict_mode 1
     php_value session.gc_maxlifetime  1800
