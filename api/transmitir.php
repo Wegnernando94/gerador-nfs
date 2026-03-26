@@ -13,12 +13,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// 1. Carrega as chaves com segurança
+// 1. Valida CSRF token
+$csrfHeader = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+if (empty($csrfHeader) || $csrfHeader !== ($_SESSION['csrf_token'] ?? '')) {
+    http_response_code(403);
+    echo json_encode(["error" => "CSRF token inválido ou ausente."]);
+    exit;
+}
+
+// 2. Carrega as chaves com segurança
 $config = require __DIR__ . '/../config/config.php';
 $clientId = $config['client_id'];
 $clientSecret = $config['client_secret'];
 
-// 2. Recebe o JSON blindado do Front-end
+// 3. Recebe o JSON blindado do Front-end
 $jsonBody = file_get_contents('php://input');
 
 // Trava de segurança: impede envio de XML acidental
@@ -30,7 +38,7 @@ if (json_last_error() !== JSON_ERROR_NONE) {
 }
 
 try {
-    // 3. Autenticação na Nuvem Fiscal (Gera o Token)
+    // 4. Autenticação na Nuvem Fiscal (Gera o Token)
     $authUrl = "https://auth.nuvemfiscal.com.br/oauth/token";
     $chAuth = curl_init($authUrl);
     curl_setopt($chAuth, CURLOPT_POST, true);
@@ -61,7 +69,7 @@ try {
         exit;
     }
 
-    // 4. Envia a NF-e para o ambiente de Sandbox
+    // 5. Envia a NF-e para o ambiente de Sandbox
     $apiUrl = "https://api.sandbox.nuvemfiscal.com.br/nfe";
     $chNfe = curl_init($apiUrl);
     curl_setopt($chNfe, CURLOPT_POST, true);
@@ -86,7 +94,7 @@ try {
     $httpCode = curl_getinfo($chNfe, CURLINFO_HTTP_CODE);
     curl_close($chNfe);
 
-    // 5. Devolve a resposta exata da API para o seu JavaScript
+    // 6. Devolve a resposta exata da API para o seu JavaScript
     http_response_code($httpCode);
     echo $resposta;
 

@@ -15,6 +15,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // Allow HEAD requests for CSRF token retrieval
 if ($_SERVER['REQUEST_METHOD'] === 'HEAD') {
+    // Generate or retrieve CSRF token from session
+    if (!isset($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    header('X-CSRF-Token: ' . $_SESSION['csrf_token']);
     http_response_code(200);
     exit;
 }
