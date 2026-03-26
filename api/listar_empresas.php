@@ -38,7 +38,15 @@ try {
 
     if (!isset($authData->access_token)) {
         http_response_code(401);
-        echo json_encode(["error" => "Falha Auth", "detalhes" => $authData]);
+        echo json_encode([
+            "error" => "Falha Auth",
+            "detalhes" => $authData,
+            "debug" => [
+                "response" => $authResponse,
+                "client_id_set" => !empty($clientId),
+                "client_secret_set" => !empty($clientSecret)
+            ]
+        ]);
         exit;
     }
 
