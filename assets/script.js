@@ -304,6 +304,7 @@ async function transmitirDevolucao(notaOriginal) {
         const dhEmi = (() => { const d = new Date(Date.now() - 3 * 3600000); return d.toISOString().split('.')[0] + '-03:00'; })();
 
         const payload = {
+            cpf_cnpj: emit.CNPJ,
             ambiente: 'homologacao',
             referencia: 'DEV-' + Date.now(),
             infNFe: {
@@ -978,6 +979,7 @@ async function transmitirParaSefaz() {
         const indFinal = idDest === 2 && indIEDest === 9 ? 1 : 0;
 
         const payload = {
+            cpf_cnpj: clean(getV('cnpjEmit')),
             ambiente: "homologacao",
             referencia: "QA-" + Date.now(),
             infNFe: {
@@ -2505,6 +2507,7 @@ async function rnvReenviar() {
     if (vNF <= 0) { rnvMostrarAlert('O valor total da nota deve ser maior que zero.', 'warning'); return; }
 
     const payload = {
+        cpf_cnpj: emit.CNPJ || emit.CPF || _rnvEmit?.cnpj || _rnvNota?.chave?.substring(6,20) || '',
         ambiente: "homologacao",
         referencia: "RNV-" + Date.now(),
         infNFe: {
