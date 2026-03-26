@@ -13,6 +13,12 @@ RUN sed -i 's/AllowOverride None/AllowOverride All/g' /etc/apache2/apache2.conf
 # Copia TODO o conteúdo da sua pasta para o servidor
 COPY . /var/www/html/
 
+# Garante que existe um certificado CA para SSL
+RUN if [ ! -f /var/www/html/certs/cacert.pem ]; then \
+    mkdir -p /var/www/html/certs && \
+    curl -sS https://curl.se/ca/cacert.pem -o /var/www/html/certs/cacert.pem; \
+    fi
+
 # Habilita variáveis de ambiente do sistema no PHP via Apache
 RUN echo 'PassEnv NUVEMFISCAL_CLIENT_ID' >> /etc/apache2/apache2.conf \
  && echo 'PassEnv NUVEMFISCAL_CLIENT_SECRET' >> /etc/apache2/apache2.conf

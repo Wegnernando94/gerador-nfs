@@ -8,7 +8,7 @@ test_ssl.php
 *.pfx
 *.p12
 *.key
-cacert.pem
+# cacert.pem é necessário para SSL/TLS em produção
 
 # Credenciais e variáveis de ambiente
 .env
