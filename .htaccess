@@ -20,7 +20,8 @@ ServerSignature Off
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # Force HTTPS
+    # Force HTTPS (respeitando proxy reverso como Render/Vercel)
+    RewriteCond %{HTTP_X_FORWARDED_PROTO} !=https
     RewriteCond %{HTTPS} off
     RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
