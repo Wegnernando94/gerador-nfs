@@ -137,7 +137,14 @@ function nuvemFiscalRequest(string $method, string $path, $body = null, array $e
     }
 
     if (in_array($method, ['POST', 'PUT', 'PATCH'], true) && $body !== null) {
-        $jsonBody = json_encode($body);
+        // JSON_UNESCAPED_UNICODE evita \uXXXX e preserva chars UTF-8 corretamente
+        // JSON_INVALID_UTF8_SUBSTITUTE substitui bytes inválidos em vez de retornar false
+        $jsonBody = json_encode($body, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+        if ($jsonBody === false) {
+            error_log('[NuvemFiscal] json_encode failed for ' . $method . ' ' . $path . ': ' . json_last_error_msg());
+            throw new RuntimeException('Falha ao codificar o corpo da requisição: ' . json_last_error_msg());
+        }
+        error_log('[NuvemFiscal] ' . $method . ' ' . $path . ' body=' . $jsonBody);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonBody);
         $headers[] = 'Content-Type: application/json';
         $headers[] = 'Content-Length: ' . strlen($jsonBody);
