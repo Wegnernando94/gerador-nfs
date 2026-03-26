@@ -22,7 +22,7 @@ try {
     curl_setopt($chAuth, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($chAuth, CURLOPT_SSL_VERIFYPEER, true);
     curl_setopt($chAuth, CURLOPT_SSL_VERIFYHOST, 2);
-    curl_setopt($chAuth, CURLOPT_CAINFO, __DIR__ . '/../certs/cacert.pem');
+    curl_setopt($chAuth, CURLOPT_CAINFO, '/var/www/html/certs/cacert.pem');
     curl_setopt($chAuth, CURLOPT_POSTFIELDS, http_build_query([
         'grant_type' => 'client_credentials', 
         'scope' => 'empresa' // Escopo diferente para buscar empresas
@@ -65,7 +65,7 @@ try {
     curl_setopt($chEmp, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($chEmp, CURLOPT_SSL_VERIFYPEER, true);
     curl_setopt($chEmp, CURLOPT_SSL_VERIFYHOST, 2);
-    curl_setopt($chEmp, CURLOPT_CAINFO, __DIR__ . '/../certs/cacert.pem');
+    curl_setopt($chEmp, CURLOPT_CAINFO, '/var/www/html/certs/cacert.pem');
     curl_setopt($chEmp, CURLOPT_HTTPHEADER, [
         "Authorization: Bearer " . $authData->access_token
     ]);

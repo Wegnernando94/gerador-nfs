@@ -21,7 +21,7 @@ define('NUVEM_TOKEN_TTL',     3500); // seconds (expires_in is typically 3600)
 // CA bundle local (cacert.pem baixado de https://curl.se/ca/cacert.pem)
 // Resolve "SSL certificate problem: unable to get local issuer certificate"
 // em ambientes Windows onde o php.ini não tem curl.cainfo configurado.
-define('NUVEM_CAINFO', __DIR__ . '/../certs/cacert.pem');
+define('NUVEM_CAINFO', '/var/www/html/certs/cacert.pem');
 
 unset($_nuvemCfg);
 

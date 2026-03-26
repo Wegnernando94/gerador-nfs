@@ -28,7 +28,7 @@ try {
     curl_setopt($chAuth, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($chAuth, CURLOPT_SSL_VERIFYPEER, true);
     curl_setopt($chAuth, CURLOPT_SSL_VERIFYHOST, 2);
-    curl_setopt($chAuth, CURLOPT_CAINFO, __DIR__ . '/../certs/cacert.pem');
+    curl_setopt($chAuth, CURLOPT_CAINFO, '/var/www/html/certs/cacert.pem');
     curl_setopt($chAuth, CURLOPT_POSTFIELDS, http_build_query(['grant_type' => 'client_credentials', 'scope' => 'nfe']));
     curl_setopt($chAuth, CURLOPT_HTTPHEADER, [
         "Authorization: Basic " . base64_encode(trim($clientId) . ":" . trim($clientSecret)),
@@ -49,11 +49,11 @@ try {
     $apiUrl = "https://api.sandbox.nuvemfiscal.com.br/nfe";
     $chNfe = curl_init($apiUrl);
     curl_setopt($chNfe, CURLOPT_POST, true);
-    curl_setopt($chNfe, CURLOPT_POSTFIELDS, $jsonBody); 
+    curl_setopt($chNfe, CURLOPT_POSTFIELDS, $jsonBody);
     curl_setopt($chNfe, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($chNfe, CURLOPT_SSL_VERIFYPEER, true);
     curl_setopt($chNfe, CURLOPT_SSL_VERIFYHOST, 2);
-    curl_setopt($chNfe, CURLOPT_CAINFO, __DIR__ . '/../certs/cacert.pem');
+    curl_setopt($chNfe, CURLOPT_CAINFO, '/var/www/html/certs/cacert.pem');
     curl_setopt($chNfe, CURLOPT_HTTPHEADER, [
         "Authorization: Bearer " . $authData->access_token,
         "Content-Type: application/json" 

@@ -22,7 +22,7 @@ try {
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_CAINFO         => __DIR__ . '/../certs/cacert.pem',
+        CURLOPT_CAINFO         => '/var/www/html/certs/cacert.pem',
         CURLOPT_POSTFIELDS     => http_build_query(['grant_type' => 'client_credentials', 'scope' => 'nfe']),
         CURLOPT_HTTPHEADER     => [
             "Authorization: Basic " . base64_encode(trim($clientId) . ":" . trim($clientSecret)),
@@ -42,7 +42,7 @@ try {
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_CAINFO         => __DIR__ . '/../certs/cacert.pem',
+        CURLOPT_CAINFO         => '/var/www/html/certs/cacert.pem',
         CURLOPT_HTTPHEADER     => ["Authorization: Bearer " . $authData->access_token]
     ]);
     $pdf      = curl_exec($chPdf);
