@@ -304,7 +304,6 @@ async function transmitirDevolucao(notaOriginal) {
         const dhEmi = (() => { const d = new Date(Date.now() - 3 * 3600000); return d.toISOString().split('.')[0] + '-03:00'; })();
 
         const payload = {
-            cpf_cnpj: emit.CNPJ,
             ambiente: 'homologacao',
             referencia: 'DEV-' + Date.now(),
             infNFe: {
@@ -979,7 +978,6 @@ async function transmitirParaSefaz() {
         const indFinal = idDest === 2 && indIEDest === 9 ? 1 : 0;
 
         const payload = {
-            cpf_cnpj: clean(getV('cnpjEmit')),
             ambiente: "homologacao",
             referencia: "QA-" + Date.now(),
             infNFe: {
