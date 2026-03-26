@@ -1152,6 +1152,7 @@ function getAliqInterestadual(ufEmit, ufDest) {
 let _skipAtual = 0;
 
 async function abrirConsulta() {
+    console.log('abrirConsulta() chamada');
     document.getElementById('modalConsulta').style.display = 'block';
     document.body.style.overflow = 'hidden';
     await popularEmpresasConsulta();
@@ -1160,10 +1161,14 @@ async function abrirConsulta() {
 
 async function popularEmpresasConsulta() {
     const sel = document.getElementById('filtroEmpresa');
-    if (!sel) return;
+    if (!sel) {
+        console.log('filtroEmpresa não encontrado');
+        return;
+    }
     // Reutiliza dados já carregados no dropdown principal se disponíveis
     const dropEmit = document.getElementById('dropEmit');
     if (dropEmit && dropEmit.options.length > 1) {
+        console.log('Reutilizando empresas do dropdown principal');
         sel.innerHTML = Array.from(dropEmit.options).map(o =>
             `<option value="${o.value}" data-nome="${o.dataset.nome || o.text}">${o.text}</option>`
         ).join('');
@@ -1172,12 +1177,27 @@ async function popularEmpresasConsulta() {
     }
     // Caso contrário carrega da API
     try {
+        console.log('Carregando empresas da API...');
         const resp = await fetch('api/listar_empresas.php');
+        console.log('Resposta da API:', resp.status, resp.statusText);
+        if (!resp.ok) {
+            throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+        }
         const res  = await resp.json();
-        sel.innerHTML = '<option value="">Selecione a empresa...</option>' + res.data.map(e =>
-            `<option value="${e.cpf_cnpj}" data-nome="${e.nome_razao_social}">${e.nome_razao_social}</option>`
-        ).join('');
-    } catch { sel.innerHTML = '<option value="">Erro ao carregar empresas</option>'; }
+        console.log('Dados recebidos:', res);
+        if (res.error) {
+            sel.innerHTML = `<option value="">Erro: ${res.error}</option>`;
+        } else if (res.data && res.data.length > 0) {
+            sel.innerHTML = '<option value="">Selecione a empresa...</option>' + res.data.map(e =>
+                `<option value="${e.cpf_cnpj}" data-nome="${e.nome_razao_social}">${e.nome_razao_social}</option>`
+            ).join('');
+        } else {
+            sel.innerHTML = '<option value="">Nenhuma empresa encontrada</option>';
+        }
+    } catch (e) {
+        console.error('Erro ao carregar empresas:', e.message);
+        sel.innerHTML = `<option value="">Erro ao carregar empresas: ${e.message}</option>`;
+    }
     initCombobox('cbFiltroEmpresa', 'filtroEmpresa');
 }
 
@@ -1192,11 +1212,13 @@ async function buscarNotas(skip) {
     const top    = parseInt(document.getElementById('filtroTop').value) || 20;
     const status = document.getElementById('filtroStatus').value;
     const cnpj   = (document.getElementById('filtroEmpresa').value || '').replace(/\D/g, '');
+    console.log('buscarNotas() chamada:', { top, status, cnpj, skip });
     // Limpa filtro de busca ao recarregar
     const filtroNumInput = document.getElementById('filtroNumero');
     if (filtroNumInput) filtroNumInput.value = '';
 
     if (!cnpj) {
+        console.log('CNPJ vazio, retornando');
         document.getElementById('corpoTabela').innerHTML =
             '<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px;">Selecione uma empresa para buscar as notas.</td></tr>';
         document.getElementById('loadingNotas').style.display = 'none';
@@ -1213,12 +1235,15 @@ async function buscarNotas(skip) {
         let notas = [];
 
         if (status) {
+            console.log('Buscando com filtro de status:', status);
             // API não suporta filtro — pagina até encontrar `top` registros com o status desejado
             let s = 0, tentativas = 0;
             while (notas.length < top && tentativas < 6) {
                 const p = new URLSearchParams({ top: 50, skip: s, cpf_cnpj: cnpj });
                 const r = await fetch('api/consultar_nfes.php?' + p);
+                console.log('Resposta da API:', r.status);
                 const d = await r.json();
+                console.log('Dados recebidos:', d);
                 if (d.error || !d.data || d.data.length === 0) break;
                 notas.push(...d.data.filter(n => n.status === status));
                 if (d.data.length < 50) break; // última página
@@ -1227,9 +1252,13 @@ async function buscarNotas(skip) {
             }
             notas = notas.slice(0, top);
         } else {
+            console.log('Buscando sem filtro de status, params:', params.toString());
             const resp = await fetch('api/consultar_nfes.php?' + params);
+            console.log('Resposta da API:', resp.status);
             const res  = await resp.json();
+            console.log('Dados recebidos:', res);
             if (res.error || !res.data) {
+                console.error('Erro na resposta:', res.error);
                 document.getElementById('loadingNotas').style.display = 'none';
                 document.getElementById('corpoTabela').innerHTML =
                     `<tr><td colspan="8" style="text-align:center;color:#f44336;padding:16px;">${res.error || 'Sem dados'}</td></tr>`;
