@@ -1,6 +1,6 @@
 #!/bin/sh
-# Gera o config.php em runtime com as variáveis de ambiente disponíveis
-cat > /var/www/html/config.php <<EOF
+# Gera o config/config.php em runtime com as variáveis de ambiente disponíveis
+cat > /var/www/html/config/config.php <<EOF
 <?php
 return [
     'client_id'     => '${NUVEMFISCAL_CLIENT_ID}',

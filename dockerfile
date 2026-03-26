@@ -17,11 +17,16 @@ COPY . /var/www/html/
 RUN echo 'PassEnv NUVEMFISCAL_CLIENT_ID' >> /etc/apache2/apache2.conf \
  && echo 'PassEnv NUVEMFISCAL_CLIENT_SECRET' >> /etc/apache2/apache2.conf
 
-# Gera config.php que lê as credenciais das variáveis de ambiente em runtime
-RUN printf '<?php\nreturn [\n    "client_id"     => getenv("NUVEMFISCAL_CLIENT_ID"),\n    "client_secret" => getenv("NUVEMFISCAL_CLIENT_SECRET"),\n    "api_base"      => "https://api.sandbox.nuvemfiscal.com.br"\n];\n' > /var/www/html/config.php
+# Gera config/config.php que lê as credenciais das variáveis de ambiente em runtime
+RUN printf '<?php\nreturn [\n    "client_id"     => getenv("NUVEMFISCAL_CLIENT_ID"),\n    "client_secret" => getenv("NUVEMFISCAL_CLIENT_SECRET"),\n    "api_base"      => "https://api.sandbox.nuvemfiscal.com.br"\n];\n' > /var/www/html/config/config.php
 
 # Dá permissão total para a pasta
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
+
+# Copia e executa o entrypoint que gera config.php com variáveis de ambiente
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 EXPOSE 80
