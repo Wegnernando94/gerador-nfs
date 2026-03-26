@@ -4,18 +4,15 @@ require_once __DIR__ . '/../helpers/session_check.php';
 ob_clean();
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, HEAD, POST, OPTIONS');
+header('Access-Control-Allow-Methods: GET, HEAD, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
-// Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
 }
 
-// Allow HEAD requests for CSRF token retrieval
 if ($_SERVER['REQUEST_METHOD'] === 'HEAD') {
-    // Generate or retrieve CSRF token from session
     if (!isset($_SESSION['csrf_token'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
@@ -24,106 +21,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'HEAD') {
     exit;
 }
 
-$config = require __DIR__ . '/../config/config.php';
-$clientId = $config['client_id'];
-$clientSecret = $config['client_secret'];
+require_once __DIR__ . '/auth_nuvem.php';
 
 try {
-    // 1. Obter Token (Atenção ao scope 'empresa')
-    $authUrl = "https://auth.nuvemfiscal.com.br/oauth/token";
-    $chAuth = curl_init($authUrl);
-    curl_setopt($chAuth, CURLOPT_POST, true);
-    curl_setopt($chAuth, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($chAuth, CURLOPT_SSL_VERIFYPEER, true);
-    curl_setopt($chAuth, CURLOPT_SSL_VERIFYHOST, 2);
-    // Usa certificado padrão do sistema se disponível, caso contrário desabilita verificação (apenas para sandbox)
-    $cafile = __DIR__ . '/../certs/cacert.pem';
-    if (file_exists($cafile)) {
-        curl_setopt($chAuth, CURLOPT_CAINFO, $cafile);
-    } else {
-        // Em sandbox, permite SSL sem verificação de certificado (NÃO usar em produção)
-        curl_setopt($chAuth, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($chAuth, CURLOPT_SSL_VERIFYHOST, 0);
-    }
-    curl_setopt($chAuth, CURLOPT_POSTFIELDS, http_build_query([
-        'grant_type' => 'client_credentials', 
-        'scope' => 'empresa' // Escopo diferente para buscar empresas
-    ]));
-    curl_setopt($chAuth, CURLOPT_HTTPHEADER, [
-        "Authorization: Basic " . base64_encode(trim($clientId) . ":" . trim($clientSecret)),
-        "Content-Type: application/x-www-form-urlencoded"
-    ]);
-
-    $authResponse = curl_exec($chAuth);
-    $curlError = curl_error($chAuth);
-    $curlErrno = curl_errno($chAuth);
-    curl_close($chAuth);
-
-    if ($authResponse === false) {
-        http_response_code(500);
-        echo json_encode([
-            "error" => "Erro CURL na autenticação",
-            "curl_error" => $curlError,
-            "curl_errno" => $curlErrno
-        ]);
-        exit;
+    // Busca cada empresa pelo CNPJ salvo localmente
+    // (a API Nuvem Fiscal exige cpf_cnpj como filtro — não suporta listagem sem ele)
+    $arquivo = __DIR__ . '/../data/empresas_locais.json';
+    $cnpjs = [];
+    if (file_exists($arquivo)) {
+        $cnpjs = json_decode(file_get_contents($arquivo), true) ?? [];
     }
 
-    $authData = json_decode($authResponse);
-
-    if (!isset($authData->access_token)) {
-        http_response_code(401);
-        echo json_encode([
-            "error" => "Falha Auth",
-            "detalhes" => $authData,
-            "response_raw" => $authResponse
-        ]);
-        exit;
+    $empresas = [];
+    foreach ($cnpjs as $cnpj) {
+        $cnpj = preg_replace('/\D/', '', $cnpj);
+        if ($cnpj === '') continue;
+        $r = nuvemFiscalRequest('GET', '/empresas/' . $cnpj);
+        if ($r['status'] === 200 && !empty($r['body']['cpf_cnpj'])) {
+            $empresas[] = $r['body'];
+        }
     }
 
-    // 2. Buscar a lista de empresas no Sandbox
-    $apiUrl = "https://api.sandbox.nuvemfiscal.com.br/empresas";
-    $chEmp = curl_init($apiUrl);
-    curl_setopt($chEmp, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($chEmp, CURLOPT_SSL_VERIFYPEER, true);
-    curl_setopt($chEmp, CURLOPT_SSL_VERIFYHOST, 2);
-    if (file_exists($cafile)) {
-        curl_setopt($chEmp, CURLOPT_CAINFO, $cafile);
-    } else {
-        curl_setopt($chEmp, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($chEmp, CURLOPT_SSL_VERIFYHOST, 0);
-    }
-    curl_setopt($chEmp, CURLOPT_HTTPHEADER, [
-        "Authorization: Bearer " . $authData->access_token
-    ]);
-    
-    $resposta = curl_exec($chEmp);
-    $httpCode = curl_getinfo($chEmp, CURLINFO_HTTP_CODE);
-    curl_close($chEmp);
-
-    // Parse e reformat a resposta da API
-    $apiResponse = json_decode($resposta, true);
-
-    // A API pode retornar um array direto ou um objeto com dados
-    // Normalizamos para o formato esperado pelo frontend: { data: [...] }
-    if (is_array($apiResponse)) {
-        // Se for array direto, assumimos que é a lista de empresas
-        $formattedResponse = ['data' => $apiResponse];
-    } elseif (isset($apiResponse['data'])) {
-        // Se já tem 'data', mantém como está
-        $formattedResponse = $apiResponse;
-    } elseif (isset($apiResponse['empresas'])) {
-        // Alguns endpoints usam 'empresas' em vez de 'data'
-        $formattedResponse = ['data' => $apiResponse['empresas']];
-    } else {
-        // Se nada funcionar, passa a resposta como é
-        $formattedResponse = ['data' => $apiResponse];
-    }
-
-    http_response_code($httpCode);
-    echo json_encode($formattedResponse);
+    echo json_encode(['data' => $empresas]);
 
 } catch (Exception $e) {
     http_response_code(500);
-    echo json_encode(["error" => $e->getMessage()]);
+    echo json_encode(['error' => $e->getMessage()]);
 }

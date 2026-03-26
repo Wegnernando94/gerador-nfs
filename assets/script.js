@@ -1540,6 +1540,38 @@ function initCombobox(inputId, selectId) {
         return Array.from(select.options).filter(o => o.value);
     }
 
+    function renderOpts(filtered) {
+        if (!filtered.length) return false;
+        list.innerHTML = filtered.map(o =>
+            `<div class="combobox-option" data-value="${o.value}" data-nome="${o.dataset.nome || o.text}">${o.dataset.nome || o.text}</div>`
+        ).join('');
+        list.classList.add('open');
+        return true;
+    }
+
+    function addEmpresaOption(e) {
+        const end = e.endereco || {};
+        const opt = document.createElement('option');
+        opt.value = e.cpf_cnpj;
+        opt.text  = e.nome_razao_social;
+        opt.dataset.nome    = e.nome_razao_social;
+        opt.dataset.uf      = end.uf || '';
+        opt.dataset.cmun    = end.codigo_municipio || '';
+        opt.dataset.xmun    = end.cidade || '';
+        opt.dataset.xlgr    = end.logradouro || '';
+        opt.dataset.nro     = end.numero || 'SN';
+        opt.dataset.xbairro = end.bairro || '';
+        opt.dataset.cep     = (end.cep || '').replace(/\D/g, '');
+        opt.dataset.ie      = e.inscricao_estadual || '';
+        // Adiciona nos dois dropdowns para manter sincronizado
+        ['dropEmit','dropDest'].forEach(id => {
+            const sel = document.getElementById(id);
+            if (sel && !sel.querySelector(`option[value="${e.cpf_cnpj}"]`)) {
+                sel.appendChild(opt.cloneNode(true));
+            }
+        });
+    }
+
     function render(termo) {
         const t = (termo || '').trim().toLowerCase().replace(/[.\-\/]/g, '');
         const filtered = !t ? getOpts() : getOpts().filter(o => {
@@ -1547,14 +1579,34 @@ function initCombobox(inputId, selectId) {
             const cnpj = (o.value || '').replace(/\D/g, '');
             return nome.includes(t) || cnpj.includes(t);
         });
-        if (!filtered.length) {
-            list.innerHTML = '<div class="combobox-empty">Nenhum resultado</div>';
+        if (renderOpts(filtered)) return;
+
+        // Sem resultado local — tenta busca live se parecer CNPJ
+        const cnpjDigits = t.replace(/\D/g, '');
+        if (cnpjDigits.length >= 8) {
+            list.innerHTML = '<div class="combobox-empty">Buscando...</div>';
+            list.classList.add('open');
+            fetch('api/cadastrar_empresa.php?cpf_cnpj=' + cnpjDigits)
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.cpf_cnpj) {
+                        addEmpresaOption(data);
+                        // Re-renderiza com o novo resultado
+                        const novo = getOpts().filter(o => o.value.replace(/\D/g,'').includes(cnpjDigits));
+                        if (!renderOpts(novo)) {
+                            list.innerHTML = '<div class="combobox-empty">Empresa não encontrada na Nuvem Fiscal</div>';
+                        }
+                    } else {
+                        list.innerHTML = '<div class="combobox-empty">Empresa não encontrada na Nuvem Fiscal</div>';
+                    }
+                })
+                .catch(() => {
+                    list.innerHTML = '<div class="combobox-empty">Erro ao buscar empresa</div>';
+                });
         } else {
-            list.innerHTML = filtered.map(o =>
-                `<div class="combobox-option" data-value="${o.value}" data-nome="${o.dataset.nome || o.text}">${o.dataset.nome || o.text}</div>`
-            ).join('');
+            list.innerHTML = '<div class="combobox-empty">Nenhum resultado</div>';
+            list.classList.add('open');
         }
-        list.classList.add('open');
     }
 
     function close() { list.classList.remove('open'); }

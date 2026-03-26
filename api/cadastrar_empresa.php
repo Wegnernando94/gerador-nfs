@@ -65,8 +65,8 @@ if ($method === 'PUT') {
         echo json_encode(['error' => 'Campo cpf_cnpj é obrigatório para atualização.']);
         exit;
     }
-    // Remove cpf_cnpj do body (não vai no payload do PUT)
-    unset($requestBody['cpf_cnpj']);
+    // A API Nuvem Fiscal exige cpf_cnpj no body do PUT também
+    $requestBody['cpf_cnpj'] = $cpfCnpj;
     try {
         $result = nuvemFiscalRequest('PUT', '/empresas/' . $cpfCnpj, $requestBody);
     } catch (RuntimeException $e) {
@@ -91,8 +91,23 @@ try {
 $status = $result['status'];
 $body   = $result['body'];
 
+// Salva CNPJ localmente para uso no dropdown
+function salvarCnpjLocal(string $cnpj): void {
+    $arquivo = __DIR__ . '/../data/empresas_locais.json';
+    $lista = [];
+    if (file_exists($arquivo)) {
+        $lista = json_decode(file_get_contents($arquivo), true) ?? [];
+    }
+    if (!in_array($cnpj, $lista, true)) {
+        $lista[] = $cnpj;
+        file_put_contents($arquivo, json_encode($lista));
+    }
+}
+
 // Handle 409 Conflict — empresa already registered in Nuvem Fiscal
 if ($status === 409) {
+    $cnpj = preg_replace('/\D/', '', $requestBody['cpf_cnpj'] ?? '');
+    if ($cnpj !== '') salvarCnpjLocal($cnpj);
     http_response_code(409);
     echo json_encode([
         'already_exists' => true,
@@ -102,5 +117,9 @@ if ($status === 409) {
 }
 
 // Forward the API response with its original HTTP status code
+if ($status === 200 || $status === 201) {
+    $cnpj = preg_replace('/\D/', '', $requestBody['cpf_cnpj'] ?? '');
+    if ($cnpj !== '') salvarCnpjLocal($cnpj);
+}
 http_response_code($status);
 echo json_encode($body);
