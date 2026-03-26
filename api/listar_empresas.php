@@ -33,19 +33,28 @@ try {
     ]);
 
     $authResponse = curl_exec($chAuth);
-    $authData = json_decode($authResponse);
+    $curlError = curl_error($chAuth);
+    $curlErrno = curl_errno($chAuth);
     curl_close($chAuth);
+
+    if ($authResponse === false) {
+        http_response_code(500);
+        echo json_encode([
+            "error" => "Erro CURL na autenticação",
+            "curl_error" => $curlError,
+            "curl_errno" => $curlErrno
+        ]);
+        exit;
+    }
+
+    $authData = json_decode($authResponse);
 
     if (!isset($authData->access_token)) {
         http_response_code(401);
         echo json_encode([
             "error" => "Falha Auth",
             "detalhes" => $authData,
-            "debug" => [
-                "response" => $authResponse,
-                "client_id_set" => !empty($clientId),
-                "client_secret_set" => !empty($clientSecret)
-            ]
+            "response_raw" => $authResponse
         ]);
         exit;
     }
