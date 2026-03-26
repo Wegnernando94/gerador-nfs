@@ -1741,6 +1741,10 @@ async function empBuscarCNPJ() {
     const cnpj = document.getElementById('empCpfCnpj').value.replace(/\D/g, '');
     if (cnpj.length !== 14) { empMostrarAlert('Informe um CNPJ completo (14 dígitos) antes de buscar.', 'warning'); return; }
 
+    // Reseta modo de edição ao buscar novo CNPJ
+    _empCpfCnpjAtual = null;
+    empAtualizarBotaoSalvar();
+
     const loading = document.getElementById('empLoadingDoc');
     loading.style.display = 'flex';
     empOcultarAlert();
