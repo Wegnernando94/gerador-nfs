@@ -1,3 +1,33 @@
+// ── CSRF token helper (OWASP A01) ─────────────────────────
+let _csrfToken = null;
+
+async function getCsrfToken() {
+    if (_csrfToken) return _csrfToken;
+    try {
+        const r = await fetch('api/listar_empresas.php', { method: 'HEAD' });
+        _csrfToken = r.headers.get('X-CSRF-Token') || '';
+    } catch { _csrfToken = ''; }
+    return _csrfToken;
+}
+
+async function securePost(url, body) {
+    const token = await getCsrfToken();
+    return fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token },
+        body: JSON.stringify(body)
+    });
+}
+
+async function securePut(url, body) {
+    const token = await getCsrfToken();
+    return fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token },
+        body: JSON.stringify(body)
+    });
+}
+
 // ==========================================
 // CONFIGURAÇÕES GERAIS E INICIALIZAÇÃO
 // ==========================================
@@ -115,7 +145,7 @@ async function consultarNotaRef() {
 
     load.style.display = '';
     try {
-        const resp = await fetch(`buscar_nfe.php?chave=${chave}`);
+        const resp = await fetch(`api/buscar_nfe.php?chave=${chave}`);
         const res  = await resp.json();
         load.style.display = 'none';
 
@@ -313,10 +343,10 @@ async function transmitirDevolucao(notaOriginal) {
             }
         };
 
-        const resp = await fetch('transmitir.php', {
+        const resp = await fetch('api/transmitir.php', {
             method: 'POST',
             body: JSON.stringify(payload),
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': await getCsrfToken() }
         });
         const res = await resp.json();
 
@@ -1076,7 +1106,7 @@ async function transmitirParaSefaz() {
         payload.infNFe.total.ICMSTot.vNF        = vNFN;
         payload.infNFe.pag.detPag[0].vPag       = vNFN;
 
-        const resp = await fetch('transmitir.php', { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' } });
+        const resp = await fetch('api/transmitir.php', { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': await getCsrfToken() } });
         const res = await resp.json();
 
         // Salva payload original no localStorage para reenvio futuro
@@ -1137,16 +1167,18 @@ async function popularEmpresasConsulta() {
         sel.innerHTML = Array.from(dropEmit.options).map(o =>
             `<option value="${o.value}" data-nome="${o.dataset.nome || o.text}">${o.text}</option>`
         ).join('');
+        initCombobox('cbFiltroEmpresa', 'filtroEmpresa');
         return;
     }
     // Caso contrário carrega da API
     try {
-        const resp = await fetch('listar_empresas.php');
+        const resp = await fetch('api/listar_empresas.php');
         const res  = await resp.json();
         sel.innerHTML = '<option value="">Selecione a empresa...</option>' + res.data.map(e =>
             `<option value="${e.cpf_cnpj}" data-nome="${e.nome_razao_social}">${e.nome_razao_social}</option>`
         ).join('');
     } catch { sel.innerHTML = '<option value="">Erro ao carregar empresas</option>'; }
+    initCombobox('cbFiltroEmpresa', 'filtroEmpresa');
 }
 
 function fecharConsulta() {
@@ -1185,7 +1217,7 @@ async function buscarNotas(skip) {
             let s = 0, tentativas = 0;
             while (notas.length < top && tentativas < 6) {
                 const p = new URLSearchParams({ top: 50, skip: s, cpf_cnpj: cnpj });
-                const r = await fetch('consultar_nfes.php?' + p);
+                const r = await fetch('api/consultar_nfes.php?' + p);
                 const d = await r.json();
                 if (d.error || !d.data || d.data.length === 0) break;
                 notas.push(...d.data.filter(n => n.status === status));
@@ -1195,7 +1227,7 @@ async function buscarNotas(skip) {
             }
             notas = notas.slice(0, top);
         } else {
-            const resp = await fetch('consultar_nfes.php?' + params);
+            const resp = await fetch('api/consultar_nfes.php?' + params);
             const res  = await resp.json();
             if (res.error || !res.data) {
                 document.getElementById('loadingNotas').style.display = 'none';
@@ -1264,7 +1296,7 @@ function paginarNotas(dir) {
 }
 
 function filtrarTabelaNotas() {
-    const termo = (document.getElementById('filtroNumero').value || '').trim().toLowerCase();
+    const termo = (document.getElementById('cbFiltroEmpresa')?.value || '').trim().toLowerCase();
     const rows = document.querySelectorAll('#corpoTabela tr[data-numero]');
     rows.forEach(row => {
         if (!termo) { row.style.display = ''; return; }
@@ -1282,7 +1314,7 @@ function verDanfeConsulta(id, label) {
     _idDanfeViewer = id;
     const viewer = document.getElementById('danfeViewer');
     document.getElementById('danfeTitulo').textContent = `DANFE — Nota ${label}`;
-    document.getElementById('iframeConsulta').src = `danfe.php?id=${id}`;
+    document.getElementById('iframeConsulta').src = `api/danfe.php?id=${id}`;
     viewer.style.display = '';
     viewer.scrollIntoView({ behavior: 'smooth' });
 }
@@ -1290,21 +1322,21 @@ function verDanfeConsulta(id, label) {
 function baixarXmlViewer() {
     if (!_idDanfeViewer) return;
     const a = document.createElement('a');
-    a.href = `download_xml.php?id=${_idDanfeViewer}`;
+    a.href = `api/download_xml.php?id=${_idDanfeViewer}`;
     a.download = `NFe_${_idDanfeViewer}.xml`;
     a.click();
 }
 
 function baixarDanfeConsulta(id, label) {
     const a = document.createElement('a');
-    a.href  = `danfe.php?id=${id}`;
+    a.href  = `api/danfe.php?id=${id}`;
     a.download = `DANFE_${label.replace('/','-')}.pdf`;
     a.click();
 }
 
 function baixarXmlConsulta(id, label) {
     const a = document.createElement('a');
-    a.href  = `download_xml.php?id=${id}`;
+    a.href  = `api/download_xml.php?id=${id}`;
     a.download = `NFe_${label.replace('/','-')}.xml`;
     a.click();
 }
@@ -1390,7 +1422,7 @@ function abrirDanfe() {
     if (!_ultimoIdNfe) return;
     const div   = document.getElementById('iframeDanfe');
     const frame = document.getElementById('frameNota');
-    frame.src   = `danfe.php?id=${_ultimoIdNfe}`;
+    frame.src   = `api/danfe.php?id=${_ultimoIdNfe}`;
     div.style.display = '';
     div.scrollIntoView({ behavior: 'smooth' });
 }
@@ -1398,7 +1430,7 @@ function abrirDanfe() {
 function baixarDanfe() {
     if (!_ultimoIdNfe) return;
     const a  = document.createElement('a');
-    a.href   = `danfe.php?id=${_ultimoIdNfe}`;
+    a.href   = `api/danfe.php?id=${_ultimoIdNfe}`;
     a.download = `DANFE_${_ultimoIdNfe}.pdf`;
     a.click();
 }
@@ -1406,7 +1438,7 @@ function baixarDanfe() {
 function baixarXml() {
     if (!_ultimoIdNfe) return;
     const a  = document.createElement('a');
-    a.href   = `download_xml.php?id=${_ultimoIdNfe}`;
+    a.href   = `api/download_xml.php?id=${_ultimoIdNfe}`;
     a.download = `NFe_${_ultimoIdNfe}.xml`;
     a.click();
 }
@@ -1429,7 +1461,7 @@ const ALIQ_INTERNA_ICMS = {
 // DROPDOWNS
 async function carregarDropdownsEmpresas() {
     try {
-        const resp = await fetch('listar_empresas.php');
+        const resp = await fetch('api/listar_empresas.php');
         if (!resp.ok) {
             const txt = await resp.text();
             console.error('listar_empresas.php retornou HTTP', resp.status, txt);
@@ -1456,7 +1488,73 @@ async function carregarDropdownsEmpresas() {
         }).join('');
         document.getElementById('dropEmit').innerHTML = '<option value="">Selecione...</option>' + opt;
         document.getElementById('dropDest').innerHTML = '<option value="">Selecione...</option>' + opt;
+        initCombobox('cbEmit', 'dropEmit');
+        initCombobox('cbDest', 'dropDest');
     } catch(e) { console.error("Erro ao carregar empresas", e); }
+}
+
+function initCombobox(inputId, selectId) {
+    const input  = document.getElementById(inputId);
+    const select = document.getElementById(selectId);
+    const list   = document.getElementById(inputId + 'List');
+    if (!input || !select || !list) return;
+
+    // Prevent double-init
+    if (input._cbInited) return;
+    input._cbInited = true;
+
+    function getOpts() {
+        return Array.from(select.options).filter(o => o.value);
+    }
+
+    function render(termo) {
+        const t = (termo || '').trim().toLowerCase().replace(/[.\-\/]/g, '');
+        const filtered = !t ? getOpts() : getOpts().filter(o => {
+            const nome = (o.dataset.nome || o.text || '').toLowerCase();
+            const cnpj = (o.value || '').replace(/\D/g, '');
+            return nome.includes(t) || cnpj.includes(t);
+        });
+        if (!filtered.length) {
+            list.innerHTML = '<div class="combobox-empty">Nenhum resultado</div>';
+        } else {
+            list.innerHTML = filtered.map(o =>
+                `<div class="combobox-option" data-value="${o.value}" data-nome="${o.dataset.nome || o.text}">${o.dataset.nome || o.text}</div>`
+            ).join('');
+        }
+        list.classList.add('open');
+    }
+
+    function close() { list.classList.remove('open'); }
+
+    input.addEventListener('input',  () => render(input.value));
+    input.addEventListener('focus',  () => render(input.value));
+    input.addEventListener('keydown', e => {
+        if (!list.classList.contains('open')) return;
+        const items = list.querySelectorAll('.combobox-option');
+        const focused = list.querySelector('.cb-focus');
+        let idx = Array.from(items).indexOf(focused);
+        if (e.key === 'ArrowDown') { e.preventDefault(); idx = Math.min(idx + 1, items.length - 1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); idx = Math.max(idx - 1, 0); }
+        else if (e.key === 'Enter' && focused) { e.preventDefault(); focused.dispatchEvent(new MouseEvent('mousedown', {bubbles:true})); return; }
+        else if (e.key === 'Escape') { close(); return; }
+        else return;
+        items.forEach(i => i.classList.remove('cb-focus'));
+        if (items[idx]) { items[idx].classList.add('cb-focus'); items[idx].scrollIntoView({block:'nearest'}); }
+    });
+
+    list.addEventListener('mousedown', e => {
+        const opt = e.target.closest('.combobox-option');
+        if (!opt || !opt.dataset.value) return;
+        e.preventDefault();
+        select.value = opt.dataset.value;
+        input.value  = opt.dataset.nome || opt.dataset.value;
+        close();
+        select.dispatchEvent(new Event('change'));
+    });
+
+    document.addEventListener('click', e => {
+        if (!input.contains(e.target) && !list.contains(e.target)) close();
+    }, true);
 }
 
 function filtrarDropdown(selectId, termo) {
@@ -1496,7 +1594,7 @@ async function buscarProximoNNF(cnpj) {
     nNFField.title = 'Buscando próximo número...';
     try {
         const params = new URLSearchParams({ top: 1, skip: 0, cpf_cnpj: cnpj, '$orderby': 'numero desc' });
-        const resp = await fetch('consultar_nfes.php?' + params);
+        const resp = await fetch('api/consultar_nfes.php?' + params);
         const res  = await resp.json();
         const notas = res.data || [];
         const maior = notas.length > 0 ? (parseInt(notas[0].numero) || 0) : 0;
@@ -1510,7 +1608,7 @@ async function buscarProximoNNF(cnpj) {
 async function validarNNFDisponivel(cnpj, nNF, serie) {
     try {
         const params = new URLSearchParams({ top: 5, skip: 0, cpf_cnpj: cnpj });
-        const resp = await fetch('consultar_nfes.php?' + params);
+        const resp = await fetch('api/consultar_nfes.php?' + params);
         const res  = await resp.json();
         const notas = res.data || [];
         const duplicada = notas.find(n => parseInt(n.numero) === nNF && parseInt(n.serie) === serie);
@@ -1619,7 +1717,7 @@ async function empBuscarCNPJ() {
     empOcultarAlert();
 
     try {
-        const resp = await fetch(`buscar_cnpj.php?cnpj=${cnpj}`);
+        const resp = await fetch(`api/buscar_cnpj.php?cnpj=${cnpj}`);
         const res  = await resp.json();
         loading.style.display = 'none';
 
@@ -1715,9 +1813,9 @@ async function empSalvar() {
     };
 
     try {
-        const resp = await fetch('cadastrar_empresa.php', {
+        const resp = await fetch('api/cadastrar_empresa.php', {
             method: modoAtualizar ? 'PUT' : 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': await getCsrfToken() },
             body: JSON.stringify(payload)
         });
         const res = await resp.json();
@@ -1764,7 +1862,7 @@ async function empVerificarCertificado(cpfCnpj) {
     document.getElementById('certStatusDot').className     = 'cert-status-dot inativo';
 
     try {
-        const resp = await fetch(`upload_certificado.php?cpf_cnpj=${cpfCnpj.replace(/\D/g,'')}`);
+        const resp = await fetch(`api/upload_certificado.php?cpf_cnpj=${cpfCnpj.replace(/\D/g,'')}`);
         const res  = await resp.json();
 
         if (resp.ok && res.data_validade) {
@@ -1833,7 +1931,7 @@ async function empUploadCertificado() {
     form.append('certificado', arquivo);
 
     try {
-        const resp = await fetch('upload_certificado.php', { method: 'POST', body: form });
+        const resp = await fetch('api/upload_certificado.php', { method: 'POST', body: form, headers: { 'X-CSRF-Token': await getCsrfToken() } });
         const res  = await resp.json();
 
         if (resp.ok && !res.error) {
@@ -1924,11 +2022,11 @@ async function abrirReenvioNFe(id, chave) {
 
     // Load NF-e data and events in parallel
     const fetchUrl = chave && chave.length === 44
-        ? `buscar_nfe.php?chave=${chave}&id=${encodeURIComponent(id)}`
-        : `buscar_nfe.php?id=${encodeURIComponent(id)}`;
+        ? `api/buscar_nfe.php?chave=${chave}&id=${encodeURIComponent(id)}`
+        : `api/buscar_nfe.php?id=${encodeURIComponent(id)}`;
     const [notaData, eventosData] = await Promise.allSettled([
         fetch(fetchUrl).then(r => r.json()),
-        fetch(`eventos_nfe.php?id=${id}`).then(r => r.json())
+        fetch(`api/eventos_nfe.php?id=${id}`).then(r => r.json())
     ]);
 
     // Populate form
@@ -2055,6 +2153,15 @@ function rnvPopularForm(nota) {
 
     document.getElementById('rnvInfoNota').textContent =
         `ID: ${nota.id || _rnvId}  •  Chave: ${nota.chave ? nota.chave.slice(0,20) + '...' : 'N/D'}  •  Status: ${nota.status || 'rejeitado'}`;
+
+    // Desabilita o botão de reenviar se a nota já estiver autorizada ou cancelada
+    const btnReenviar = document.getElementById('rnvBtnReenviar');
+    if (nota.status === 'autorizado' || nota.status === 'cancelado') {
+        btnReenviar.disabled = true;
+        rnvMostrarAlert(`Esta nota já está com status "${nota.status}". Não é possível reenviá-la.`, 'info');
+    } else {
+        btnReenviar.disabled = false;
+    }
 
     // Items
     const det = Array.isArray(inf.det) ? inf.det : (inf.det ? [inf.det] : []);
@@ -2231,6 +2338,7 @@ function rnvRenderizarEventos(data) {
 
 async function rnvReenviar() {
     const btn = document.getElementById('rnvBtnReenviar');
+    let res;
 
     // Validate
     const itens = document.querySelectorAll('#rnvItens .rnv-item-row');
@@ -2412,12 +2520,12 @@ async function rnvReenviar() {
 
     try {
         // Cria nova NF-e com mesmo série/número (chave muda por dhEmi) e emite
-        const resp = await fetch('reenviar_nfe.php', {
+        const resp = await fetch('api/reenviar_nfe.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': await getCsrfToken() },
             body: JSON.stringify({ id: _rnvId, payload })
         });
-        const res = await resp.json();
+        res = await resp.json();
 
         // Salva payload no localStorage com o novo ID
         if (res.id) {
@@ -2430,13 +2538,14 @@ async function rnvReenviar() {
         if (res.status === 'autorizado') {
             rnvMostrarAlert('✅ Nota autorizada com sucesso!', 'success');
             showToast('NF-e autorizada!', 'success');
-            // Unlock DANFE tab
+            // Unlock DANFE tab and disable resend button
+            document.getElementById('rnvBtnReenviar').disabled = true;
             document.getElementById('rnvTabBtnDanfe').disabled = false;
             document.getElementById('rnvDanfeLock').style.display = 'none';
             document.getElementById('rnvDanfeContent').style.display = '';
-            document.getElementById('rnvDanfeFrame').src = `danfe.php?id=${nfeId}`;
-            document.getElementById('rnvBtnBaixarDanfe').href = `danfe.php?id=${nfeId}`;
-            document.getElementById('rnvBtnBaixarXml').href  = `download_xml.php?id=${nfeId}`;
+            document.getElementById('rnvDanfeFrame').src = `api/danfe.php?id=${nfeId}`;
+            document.getElementById('rnvBtnBaixarDanfe').href = `api/danfe.php?id=${nfeId}`;
+            document.getElementById('rnvBtnBaixarXml').href  = `api/download_xml.php?id=${nfeId}`;
             rnvTrocarAba('danfe');
             // Refresh main table
             if (typeof buscarNotas === 'function') buscarNotas(_skipAtual);
@@ -2447,7 +2556,7 @@ async function rnvReenviar() {
             const dict   = REJEICAO_DICT[cStat] || {};
             rnvMostrarAlert(`❌ ${dict.titulo || 'Rejeição'}: ${dict.descricao || errMsg}${dict.solucao ? ' — ' + dict.solucao : ''}`, 'error');
             // Reload events
-            const evResp = await fetch(`eventos_nfe.php?id=${_rnvId}`);
+            const evResp = await fetch(`api/eventos_nfe.php?id=${_rnvId}`);
             const evData = await evResp.json();
             rnvRenderizarEventos(evData);
             rnvTrocarAba('eventos');
@@ -2455,8 +2564,10 @@ async function rnvReenviar() {
     } catch(e) {
         rnvMostrarAlert('Falha na conexão ao reenviar. Verifique o servidor e tente novamente.', 'error');
     } finally {
-        btn.disabled  = false;
-        btn.innerText = '↩️ Reenviar Nota';
+        if (!res || res.status !== 'autorizado') {
+            btn.disabled  = false;
+            btn.innerText = '↩️ Reenviar Nota';
+        }
     }
 }
 
@@ -2490,7 +2601,7 @@ async function rnvVerDadosEmitente() {
     rnvMostrarAlert('Carregando dados cadastrais...', 'info');
 
     try {
-        const resp = await fetch(`cadastrar_empresa.php?cpf_cnpj=${cnpjRaw}`);
+        const resp = await fetch(`api/cadastrar_empresa.php?cpf_cnpj=${cnpjRaw}`);
         const emp  = await resp.json();
 
         if (emp.error || resp.status >= 400) {

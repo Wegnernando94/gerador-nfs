@@ -1,11 +1,11 @@
 <?php
 ob_start();
-require_once 'session_check.php';
+require_once __DIR__ . '/../helpers/session_check.php';
 ob_clean();
 header('Content-Type: application/json');
 
 // 1. Carrega as chaves com segurança
-$config = require 'config.php';
+$config = require __DIR__ . '/../config/config.php';
 $clientId = $config['client_id'];
 $clientSecret = $config['client_secret'];
 
@@ -26,7 +26,9 @@ try {
     $chAuth = curl_init($authUrl);
     curl_setopt($chAuth, CURLOPT_POST, true);
     curl_setopt($chAuth, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($chAuth, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($chAuth, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($chAuth, CURLOPT_SSL_VERIFYHOST, 2);
+    curl_setopt($chAuth, CURLOPT_CAINFO, __DIR__ . '/../certs/cacert.pem');
     curl_setopt($chAuth, CURLOPT_POSTFIELDS, http_build_query(['grant_type' => 'client_credentials', 'scope' => 'nfe']));
     curl_setopt($chAuth, CURLOPT_HTTPHEADER, [
         "Authorization: Basic " . base64_encode(trim($clientId) . ":" . trim($clientSecret)),
@@ -49,7 +51,9 @@ try {
     curl_setopt($chNfe, CURLOPT_POST, true);
     curl_setopt($chNfe, CURLOPT_POSTFIELDS, $jsonBody); 
     curl_setopt($chNfe, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($chNfe, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($chNfe, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($chNfe, CURLOPT_SSL_VERIFYHOST, 2);
+    curl_setopt($chNfe, CURLOPT_CAINFO, __DIR__ . '/../certs/cacert.pem');
     curl_setopt($chNfe, CURLOPT_HTTPHEADER, [
         "Authorization: Bearer " . $authData->access_token,
         "Content-Type: application/json" 

@@ -1,10 +1,10 @@
 <?php
 ob_start();
-require_once 'session_check.php';
+require_once __DIR__ . '/../helpers/session_check.php';
 ob_clean();
 header('Content-Type: application/json');
 
-$config       = require 'config.php';
+$config       = require __DIR__ . '/../config/config.php';
 $clientId     = $config['client_id'];
 $clientSecret = $config['client_secret'];
 
@@ -25,7 +25,9 @@ try {
     curl_setopt_array($chAuth, [
         CURLOPT_POST           => true,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_CAINFO         => __DIR__ . '/../certs/cacert.pem',
         CURLOPT_POSTFIELDS     => http_build_query(['grant_type' => 'client_credentials', 'scope' => 'nfe']),
         CURLOPT_HTTPHEADER     => [
             "Authorization: Basic " . base64_encode(trim($clientId) . ":" . trim($clientSecret)),
@@ -55,7 +57,9 @@ try {
         $ch = curl_init("https://api.sandbox.nuvemfiscal.com.br/nfe?{$params}");
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_CAINFO         => __DIR__ . '/../certs/cacert.pem',
             CURLOPT_HTTPHEADER     => ["Authorization: Bearer " . $authData->access_token]
         ]);
         $resp     = curl_exec($ch);
@@ -82,7 +86,9 @@ try {
     $chJson = curl_init("https://api.sandbox.nuvemfiscal.com.br/nfe/{$id}");
     curl_setopt_array($chJson, [
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_CAINFO         => __DIR__ . '/../certs/cacert.pem',
         CURLOPT_HTTPHEADER     => ["Authorization: Bearer " . $authData->access_token]
     ]);
     $jsonNota = json_decode(curl_exec($chJson), true);
@@ -92,7 +98,9 @@ try {
     $chBody = curl_init("https://api.sandbox.nuvemfiscal.com.br/nfe/{$id}/body");
     curl_setopt_array($chBody, [
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_CAINFO         => __DIR__ . '/../certs/cacert.pem',
         CURLOPT_HTTPHEADER     => ["Authorization: Bearer " . $authData->access_token]
     ]);
     $bodyResp = curl_exec($chBody);
@@ -120,8 +128,6 @@ try {
                 $result['infNFe'] = $bodyData['NFe']['infNFe'];
             } elseif (isset($bodyData['infNFe'])) {
                 $result['infNFe'] = $bodyData['infNFe'];
-            } else {
-                $result['_bodyDebug'] = $bodyData;
             }
         }
     }
@@ -131,7 +137,9 @@ try {
         $chXml = curl_init("https://api.sandbox.nuvemfiscal.com.br/nfe/{$id}/xml");
         curl_setopt_array($chXml, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_CAINFO         => __DIR__ . '/../certs/cacert.pem',
             CURLOPT_HTTPHEADER     => ["Authorization: Bearer " . $authData->access_token]
         ]);
         $xmlResp = curl_exec($chXml);
@@ -148,13 +156,9 @@ try {
                     $result['infNFe'] = $arr['NFe']['infNFe'];
                 } elseif (isset($arr['infNFe'])) {
                     $result['infNFe'] = $arr['infNFe'];
-                } else {
-                    $result['_xmlDebug'] = array_keys($arr);
                 }
             }
         }
-        $result['_bodyHttpCode'] = $bodyCode;
-        $result['_xmlHttpCode'] = $xmlCode ?? null;
     }
 
     // Último recurso: reconstrói infNFe a partir dos campos planos da API
@@ -221,7 +225,6 @@ try {
 
         $result['infNFe'] = $synth;
         $result['_infNFeSynthetic'] = true;
-        $result['_apiKeys'] = array_keys($result);
     }
 
     echo json_encode($result);

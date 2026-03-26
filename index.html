@@ -4,14 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Emissor Sandbox NF-e</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+    <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 
-<!-- TOPBAR -->
 <header class="topbar">
     <div class="topbar-brand">
-        <div class="topbar-logo">📄</div>
+        <div class="topbar-logo">
+            <img src="assets/favicon.svg" width="32" height="32" alt="SBN" style="display:block;">
+        </div>
         <div>
             <div class="topbar-title">Emissor Sandbox NF-e</div>
             <div class="topbar-subtitle">Ambiente de homologação — SEFAZ</div>
@@ -31,10 +33,7 @@
 
 <div class="app-container">
 
-    <!-- LINHA 1: Configuração + Emitente + Destinatário -->
     <div class="main-grid">
-
-        <!-- CARD 1 — Configuração -->
         <div class="card">
             <div class="card-header">
                 <div class="card-header-icon icon-blue"><span>⚙️</span></div>
@@ -54,7 +53,6 @@
                 </select>
             </div>
 
-            <!-- PAINEL DEVOLUÇÃO -->
             <div id="campoRef" style="display:none;">
                 <div style="background:var(--orange-dim); border:1px solid var(--orange); border-radius:var(--radius); padding:14px; margin-bottom:12px;">
                     <div style="font-size:11px; font-weight:600; color:var(--orange); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
@@ -97,7 +95,7 @@
             </div>
         </div>
 
-        <!-- CARD 2 — Emitente -->
+
         <div class="card">
             <div class="card-header">
                 <div class="card-header-icon icon-green"><span>🏢</span></div>
@@ -110,8 +108,11 @@
 
             <div class="field">
                 <label>Selecionar Empresa <span class="tip" data-tip="Escolha a empresa emitente. Confirme se o CNPJ e a Inscrição Estadual estão ativos na SEFAZ — uma IE cancelada ou suspensa resulta em rejeição imediata da nota.">?</span></label>
-                <input type="text" id="buscaEmit" placeholder="Buscar por nome ou CNPJ..." oninput="filtrarDropdown('dropEmit', this.value)" style="margin-bottom:4px;">
-                <select id="dropEmit" onchange="selecionarEmpresa(this, 'emit')">
+                <div class="combobox-wrap">
+                    <input type="text" id="cbEmit" class="combobox-input" placeholder="Buscar por nome ou CNPJ..." autocomplete="off">
+                    <div id="cbEmitList" class="combobox-list"></div>
+                </div>
+                <select id="dropEmit" style="display:none;" onchange="selecionarEmpresa(this, 'emit')">
                     <option value="">⏳ Carregando empresas...</option>
                 </select>
             </div>
@@ -132,7 +133,7 @@
             <input type="hidden" id="cepEmit">
         </div>
 
-        <!-- CARD 3 — Destinatário -->
+
         <div class="card">
             <div class="card-header">
                 <div class="card-header-icon icon-purple"><span>👤</span></div>
@@ -145,8 +146,11 @@
 
             <div class="field">
                 <label>Selecionar Empresa <span class="tip" data-tip="Escolha o destinatário da nota. Verifique especialmente a UF — ela determina a alíquota interestadual de ICMS aplicada automaticamente (7% ou 12% conforme a região).">?</span></label>
-                <input type="text" id="buscaDest" placeholder="Buscar por nome ou CNPJ..." oninput="filtrarDropdown('dropDest', this.value)" style="margin-bottom:4px;">
-                <select id="dropDest" onchange="selecionarEmpresa(this, 'dest')">
+                <div class="combobox-wrap">
+                    <input type="text" id="cbDest" class="combobox-input" placeholder="Buscar por nome ou CNPJ..." autocomplete="off">
+                    <div id="cbDestList" class="combobox-list"></div>
+                </div>
+                <select id="dropDest" style="display:none;" onchange="selecionarEmpresa(this, 'dest')">
                     <option value="">⏳ Carregando empresas...</option>
                 </select>
             </div>
@@ -168,7 +172,7 @@
         </div>
     </div>
 
-    <!-- CARD 4 — Tributação -->
+
     <div class="card" style="margin-bottom:16px;">
         <div class="card-header">
             <div class="card-header-icon icon-orange"><span>🧾</span></div>
@@ -204,7 +208,6 @@
             </div>
         </div>
 
-        <!-- Linha 2: IPI, ICMS-ST, Desconto, FCP -->
         <div class="grid-4" style="margin-top:10px;">
             <div class="field" style="margin:0;">
                 <label>% IPI <span class="tip" data-tip="Alíquota do IPI para produtos industrializados. Diferente do ICMS/PIS/COFINS, o IPI SOMA ao total da nota (vNF). Em notas de devolução é registrado como 'IPI Devolvido' e também compõe o total.">?</span></label>
@@ -224,7 +227,6 @@
             </div>
         </div>
 
-        <!-- Linha 3: Despesas adicionais — Grupo B -->
         <div class="grid-4" style="margin-top:10px;">
             <div class="field" style="margin:0;">
                 <label>Frete (R$) <span class="tip" data-tip="Valor do frete destacado na nota. SOMA ao total da nota (vNF) e pode compor a base de cálculo do ICMS dependendo da operação e do CFOP utilizado.">?</span></label>
@@ -241,7 +243,6 @@
             <div></div>
         </div>
 
-        <!-- Painel de tributos calculados — somente leitura -->
         <div class="trib-panel">
             <div class="trib-panel-title">Tributação Global Calculada (Conferência)</div>
             <div class="trib-grid">
@@ -281,7 +282,7 @@
         </div>
     </div>
 
-    <!-- CARD 5 — Itens -->
+
     <div class="card" style="margin-bottom:80px;">
         <div class="card-header">
             <div class="card-header-icon icon-blue"><span>📦</span></div>
@@ -299,7 +300,6 @@
         <div id="listaProdutos"></div>
     </div>
 
-    <!-- RESULTADO DA TRANSMISSÃO -->
     <div id="painelResultado" class="result-panel">
         <div class="result-header">
             <div class="result-icon" id="resIcone">✅</div>
@@ -337,12 +337,10 @@
         </div>
     </div>
 
-    <!-- XML CONFERÊNCIA -->
     <textarea id="xml-output" placeholder="O XML completo para conferência aparecerá aqui..."></textarea>
 
-</div><!-- /app-container -->
+</div>
 
-<!-- ACTION BAR STICKY -->
 <div class="action-bar">
     <div class="action-bar-total">
         <div class="action-bar-breakdown">
@@ -374,7 +372,7 @@
     </div>
 </div>
 
-<!-- MODAL CONSULTA DE NOTAS -->
+
 <div id="modalConsulta">
     <div class="modal-box">
         <div class="modal-header">
@@ -387,16 +385,16 @@
 
         <div class="filtros-consulta">
             <div class="field" style="flex:2; min-width:200px;">
-                <label>Empresa Emitente</label>
-                <input type="text" id="buscaFiltroEmpresa" placeholder="Buscar por nome ou CNPJ..." oninput="filtrarDropdown('filtroEmpresa', this.value)" style="margin-bottom:4px;">
-                <select id="filtroEmpresa" onchange="buscarNotas(0)" style="width:100%;">
+                <label>Empresa Emitente / Buscar Nota (Nº, CNPJ ou Dest.)</label>
+                <div class="combobox-wrap">
+                    <input type="text" id="cbFiltroEmpresa" class="combobox-input" placeholder="Buscar empresa ou nota (nome, CNPJ, nº)..." autocomplete="off" oninput="filtrarTabelaNotas()">
+                    <div id="cbFiltroEmpresaList" class="combobox-list"></div>
+                </div>
+                <select id="filtroEmpresa" style="display:none;" onchange="buscarNotas(0)">
                     <option value="">Selecione a empresa...</option>
                 </select>
             </div>
-            <div class="field">
-                <label>Buscar (Nº, CNPJ ou Dest.)</label>
-                <input type="text" id="filtroNumero" placeholder="Ex: 123 ou razão social" oninput="filtrarTabelaNotas()" style="min-width:140px;">
-            </div>
+            <input type="hidden" id="filtroNumero">
             <div class="field">
                 <label>Status</label>
                 <select id="filtroStatus" onchange="buscarNotas(0)" style="min-width:130px;">
@@ -469,16 +467,13 @@
     </div>
 </div>
 
-<!-- TOAST CONTAINER -->
 <div id="toast-container"></div>
 
-<!-- ================================================ -->
-<!-- MODAL CADASTRO DE EMPRESA                        -->
-<!-- ================================================ -->
+
 <div id="modalEmpresa">
     <div class="modal-box modal-emp-box">
 
-        <!-- Header -->
+
         <div class="modal-header">
             <div>
                 <div class="modal-title">🏢 Cadastro de Empresa</div>
@@ -489,7 +484,7 @@
             <button class="btn btn-ghost" onclick="fecharCadastroEmpresa()">✕ Fechar</button>
         </div>
 
-        <!-- Tabs -->
+
         <div class="emp-tabs">
             <button class="emp-tab active" id="empTabBtnDados" onclick="trocarAbaEmpresa('dados')">
                 <span class="emp-tab-num">1</span> Dados Cadastrais
@@ -499,18 +494,15 @@
             </button>
         </div>
 
-        <!-- Alert (global dentro da modal) -->
+
         <div id="empAlert" class="emp-alert info">
             <span id="empAlertIcon">ℹ️</span>
             <span id="empAlertMsg"></span>
         </div>
 
-        <!-- ============================================================ -->
-        <!-- ABA 1 — DADOS CADASTRAIS                                     -->
-        <!-- ============================================================ -->
+
         <div id="empAbaDados" class="emp-tab-content active">
 
-            <!-- Identificação -->
             <div class="emp-section">
                 <div class="emp-section-title">🪪 Identificação</div>
                 <div class="grid-2" style="margin-bottom:12px;">
@@ -552,7 +544,6 @@
                 </div>
             </div>
 
-            <!-- Contato e Fiscal -->
             <div class="emp-section">
                 <div class="emp-section-title">📋 Contato e Dados Fiscais</div>
                 <div class="grid-2" style="margin-bottom:12px;">
@@ -577,7 +568,6 @@
                 </div>
             </div>
 
-            <!-- Endereço -->
             <div class="emp-section">
                 <div class="emp-section-title">📍 Endereço</div>
                 <div style="display:grid; grid-template-columns:160px 1fr 90px; gap:10px; margin-bottom:12px;">
@@ -623,21 +613,17 @@
                 </div>
             </div>
 
-            <!-- Rodapé aba 1 -->
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
-                <button class="btn btn-ghost" onclick="fecharCadastroEmpresa()">Cancelar</button>
+                <button class="btn btn-ghost" onclick="fecharCadastroEmpresa()">Fechar</button>
                 <button class="btn btn-success" id="empBtnSalvar" onclick="empSalvar()">
                     💾 Salvar Empresa
                 </button>
             </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!-- ABA 2 — CERTIFICADO DIGITAL                                  -->
-        <!-- ============================================================ -->
+
         <div id="empAbaCert" class="emp-tab-content">
 
-            <!-- Status atual -->
             <div class="emp-section">
                 <div class="emp-section-title">🔐 Status do Certificado</div>
                 <div class="cert-status-box" id="certStatusBox">
@@ -657,7 +643,6 @@
                 </div>
             </div>
 
-            <!-- Upload -->
             <div class="emp-section">
                 <div class="emp-section-title">📤 Enviar Novo Certificado</div>
 
@@ -678,7 +663,6 @@
                 </div>
             </div>
 
-            <!-- Rodapé aba 2 -->
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
                 <button class="btn btn-ghost" onclick="fecharCadastroEmpresa()">Fechar</button>
                 <button class="btn btn-success" id="empBtnCert" onclick="empUploadCertificado()">
@@ -690,11 +674,10 @@
     </div>
 </div>
 
-<!-- MODAL REENVIO NF-e -->
 <div id="modalReenvioNFe">
   <div class="modal-box modal-reenvio-box">
 
-    <!-- Header -->
+
     <div class="modal-header">
       <div>
         <div class="modal-title">↩️ Reenviar NF-e</div>
@@ -703,7 +686,7 @@
       <button class="btn btn-ghost" onclick="rnvFechar()">✕ Fechar</button>
     </div>
 
-    <!-- Tabs -->
+
     <div class="emp-tabs" style="margin-top:16px;">
       <button class="emp-tab active" id="rnvTabBtnForm" onclick="rnvTrocarAba('form')">
         <span class="emp-tab-num">1</span> Ajuste
@@ -716,16 +699,14 @@
       </button>
     </div>
 
-    <!-- Alert -->
     <div id="rnvAlert" class="emp-alert info" style="display:none; margin-bottom:14px;">
       <span id="rnvAlertIcon">ℹ️</span>
       <span id="rnvAlertMsg"></span>
     </div>
 
-    <!-- ABA 1 — AJUSTE -->
+
     <div id="rnvAbaForm" class="emp-tab-content active">
 
-      <!-- Cabeçalho da nota -->
       <div class="emp-section">
         <div class="emp-section-title">📋 Identificação</div>
         <div class="grid-4" style="gap:10px;">
@@ -769,7 +750,6 @@
         </div>
       </div>
 
-      <!-- Itens -->
       <div class="emp-section">
         <div class="emp-section-title" style="display:flex; justify-content:space-between; align-items:center;">
           <span>📦 Itens</span>
@@ -781,11 +761,9 @@
         <div id="rnvItens"></div>
       </div>
 
-      <!-- Tributação -->
       <div class="emp-section">
         <div class="emp-section-title">🧮 Tributação Global <small style="font-weight:400;color:var(--text2);font-size:0.8em;">— aplicada a todos os itens</small></div>
 
-        <!-- Linha 1: Regime + CST + ICMS + PIS + COFINS -->
         <div class="grid-5" style="gap:10px; margin-bottom:10px;">
           <div class="field" style="margin:0;">
             <label>Regime Tributário</label>
@@ -812,7 +790,6 @@
           </div>
         </div>
 
-        <!-- Linha 2: IPI + ICMS-ST + Desconto + FCP -->
         <div class="grid-4" style="gap:10px; margin-bottom:10px;">
           <div class="field" style="margin:0;">
             <label>% IPI</label>
@@ -832,7 +809,6 @@
           </div>
         </div>
 
-        <!-- Linha 3: Frete + Seguro + Outras -->
         <div class="grid-4" style="gap:10px;">
           <div class="field" style="margin:0;">
             <label>Frete (R$)</label>
@@ -850,7 +826,6 @@
         </div>
       </div>
 
-      <!-- Totais -->
       <div class="rnv-totals">
         <div class="rnv-total-item">
           <label>Subtotal (vProd)</label>
@@ -872,14 +847,14 @@
 
     </div>
 
-    <!-- ABA 2 — EVENTOS -->
+
     <div id="rnvAbaEventos" class="emp-tab-content">
       <div id="rnvListaEventos" style="padding:8px 0;">
         <div style="text-align:center; color:var(--text2); padding:40px;">Carregando eventos...</div>
       </div>
     </div>
 
-    <!-- ABA 3 — DANFE -->
+
     <div id="rnvAbaDanfe" class="emp-tab-content">
       <div id="rnvDanfeLock" class="rnv-danfe-lock">
         <div class="lock-icon">🔒</div>
@@ -895,7 +870,7 @@
       </div>
     </div>
 
-    <!-- Footer -->
+
     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
       <button class="btn btn-ghost" onclick="rnvFechar()">✕ Fechar</button>
       <div style="display:flex; gap:10px;">
@@ -911,6 +886,6 @@
   </div>
 </div>
 
-<script src="script.js"></script>
+<script src="assets/script.js"></script>
 </body>
 </html>

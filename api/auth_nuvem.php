@@ -10,7 +10,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Carrega credenciais do config.php (não versionado)
-$_nuvemCfg = require __DIR__ . '/config.php';
+$_nuvemCfg = require __DIR__ . '/../config/config.php';
 
 define('NUVEM_CLIENT_ID',     $_nuvemCfg['client_id']);
 define('NUVEM_CLIENT_SECRET', $_nuvemCfg['client_secret']);
@@ -21,7 +21,7 @@ define('NUVEM_TOKEN_TTL',     3500); // seconds (expires_in is typically 3600)
 // CA bundle local (cacert.pem baixado de https://curl.se/ca/cacert.pem)
 // Resolve "SSL certificate problem: unable to get local issuer certificate"
 // em ambientes Windows onde o php.ini não tem curl.cainfo configurado.
-define('NUVEM_CAINFO', __DIR__ . '/cacert.pem');
+define('NUVEM_CAINFO', __DIR__ . '/../certs/cacert.pem');
 
 unset($_nuvemCfg);
 

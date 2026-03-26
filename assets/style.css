@@ -86,7 +86,6 @@ body {
 .topbar-logo {
   width: 32px;
   height: 32px;
-  background: linear-gradient(135deg, var(--blue), var(--purple));
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -251,6 +250,28 @@ body {
   margin-bottom: 5px;
   letter-spacing: .2px;
 }
+
+/* =============================================
+   COMBOBOX
+   ============================================= */
+.combobox-wrap { position: relative; }
+.combobox-input { width: 100%; }
+.combobox-list {
+  position: absolute; z-index: 1100; width: 100%;
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: var(--radius-sm); max-height: 200px; overflow-y: auto;
+  display: none; box-shadow: 0 6px 20px rgba(0,0,0,.5);
+  margin-top: 3px;
+}
+.combobox-list.open { display: block; }
+.combobox-option {
+  padding: 7px 12px; cursor: pointer; font-size: 13px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--text); border-bottom: 1px solid var(--border);
+}
+.combobox-option:last-child { border-bottom: none; }
+.combobox-option:hover, .combobox-option.cb-focus { background: var(--blue); color: #fff; }
+.combobox-empty { padding: 8px 12px; font-size: 12px; color: var(--text2); cursor: default; }
 
 /* =============================================
    TOOLTIP (ícone ? / i)

@@ -1,28 +1,76 @@
-# Bloqueia acesso direto a arquivos sensíveis
-<FilesMatch "^(config\.php|session_check\.php|autoload_manual\.php|composer\.json|\.env)$">
+# ============================================================
+#  SECURITY — OWASP hardening
+# ============================================================
+
+# Disable directory listing
+Options -Indexes -MultiViews
+
+# Disable server signature
+ServerSignature Off
+
+# ── Block sensitive files ──────────────────────────────────
+<FilesMatch "(^\.|\.(env|git|log|sh|sql|bak|conf|json|lock|md|yml|yaml|txt)$)">
     Order Allow,Deny
     Deny from all
 </FilesMatch>
+# Allow composer.json and package.json to be blocked by above, but allow README only via direct navigation
+# composer.json/package.json are blocked by above rule
 
-# Bloqueia listagem de diretório
-Options -Indexes
-
-# Força HTTPS (descomente em produção com SSL)
-# RewriteEngine On
-# RewriteCond %{HTTPS} off
-# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-
-# Headers de segurança
-<IfModule mod_headers.c>
-    Header always set X-Frame-Options "SAMEORIGIN"
-    Header always set X-Content-Type-Options "nosniff"
-    Header always set X-XSS-Protection "1; mode=block"
-    Header always set Referrer-Policy "strict-origin-when-cross-origin"
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-src 'self';"
-</IfModule>
-
-# Bloqueia acesso à pasta lib
+# ── Block internal folders ─────────────────────────────────
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteRule ^lib/ - [F,L]
+
+    # Force HTTPS
+    RewriteCond %{HTTPS} off
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Block access to internal folders
+    RewriteRule ^config/  - [F,L]
+    RewriteRule ^helpers/ - [F,L]
+    RewriteRule ^certs/   - [F,L]
+    RewriteRule ^lib/     - [F,L]
+    RewriteRule ^tools/   - [F,L]
+</IfModule>
+
+# ── PHP hardening ──────────────────────────────────────────
+<IfModule mod_php.c>
+    php_flag  display_errors        Off
+    php_flag  display_startup_errors Off
+    php_flag  log_errors            On
+    php_value error_log             /tmp/php_errors.log
+    php_flag  expose_php            Off
+    php_flag  allow_url_fopen       Off
+    php_value session.cookie_httponly 1
+    php_value session.cookie_secure   1
+    php_value session.cookie_samesite Strict
+    php_value session.use_strict_mode 1
+    php_value session.gc_maxlifetime  1800
+</IfModule>
+
+# ── Security headers ───────────────────────────────────────
+<IfModule mod_headers.c>
+    # Prevent clickjacking
+    Header always set X-Frame-Options "DENY"
+
+    # Prevent MIME sniffing
+    Header always set X-Content-Type-Options "nosniff"
+
+    # XSS protection (legacy browsers)
+    Header always set X-XSS-Protection "1; mode=block"
+
+    # Referrer policy
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Permissions policy — disable unused browser features
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+
+    # HSTS — uncomment after confirming HTTPS works
+    # Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+    # Content Security Policy
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; frame-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';"
+
+    # Remove server info headers
+    Header always unset X-Powered-By
+    Header always unset Server
 </IfModule>

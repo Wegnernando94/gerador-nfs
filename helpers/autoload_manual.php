@@ -2,7 +2,7 @@
 // autoload_manual.php
 spl_autoload_register(function ($class) {
     $prefix = 'NuvemFiscal\\';
-    $base_dir = __DIR__ . '/lib/'; // Aponta direto para a pasta lib na raiz
+    $base_dir = __DIR__ . '/../lib/'; // Aponta direto para a pasta lib na raiz
 
     $len = strlen($prefix);
     if (strncmp($prefix, $class, $len) !== 0) return;

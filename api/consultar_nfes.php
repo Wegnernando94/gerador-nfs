@@ -1,15 +1,17 @@
 <?php
 ob_start();
-require_once 'session_check.php';
+require_once __DIR__ . '/../helpers/session_check.php';
 ob_clean();
 header('Content-Type: application/json');
 
-$config       = require 'config.php';
+$config       = require __DIR__ . '/../config/config.php';
 $clientId     = $config['client_id'];
 $clientSecret = $config['client_secret'];
 
 $top     = isset($_GET['top'])     ? (int)$_GET['top']                            : 50;
 $skip    = isset($_GET['skip'])    ? (int)$_GET['skip']                           : 0;
+$top  = max(1, min(100, $top));   // clamp: 1–100
+$skip = max(0, min(10000, $skip)); // clamp: 0–10000
 $status  = isset($_GET['status'])  ? $_GET['status']                               : '';
 $orderby = isset($_GET['$orderby']) ? $_GET['$orderby']                            : '';
 $cpfCnpj = isset($_GET['cpf_cnpj']) ? preg_replace('/\D/', '', $_GET['cpf_cnpj']) : '';
@@ -26,7 +28,9 @@ try {
     curl_setopt_array($chAuth, [
         CURLOPT_POST           => true,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_CAINFO         => __DIR__ . '/../certs/cacert.pem',
         CURLOPT_POSTFIELDS     => http_build_query(['grant_type' => 'client_credentials', 'scope' => 'nfe']),
         CURLOPT_HTTPHEADER     => [
             "Authorization: Basic " . base64_encode(trim($clientId) . ":" . trim($clientSecret)),
@@ -57,7 +61,9 @@ try {
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_CAINFO         => __DIR__ . '/../certs/cacert.pem',
         CURLOPT_HTTPHEADER     => ["Authorization: Bearer " . $authData->access_token]
     ]);
     $resposta = curl_exec($ch);

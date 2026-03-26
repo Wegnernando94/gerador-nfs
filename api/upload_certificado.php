@@ -78,6 +78,21 @@ if ($method === 'POST') {
     $fileTmpPath = $_FILES['certificado']['tmp_name'];
     $fileName    = $_FILES['certificado']['name'];
 
+    // Validate file type — only .pfx and .p12 certificates allowed (A03)
+    $allowedExtensions = ['pfx', 'p12'];
+    $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+    if (!in_array($fileExt, $allowedExtensions, true)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Tipo de arquivo inválido. Apenas .pfx e .p12 são permitidos.']);
+        exit;
+    }
+    // Validate file size — max 1MB
+    if ($_FILES['certificado']['size'] > 1048576) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Arquivo muito grande. Tamanho máximo: 1 MB.']);
+        exit;
+    }
+
     // Build the PUT multipart/form-data request manually with cURL
     // (nuvemFiscalRequest handles JSON bodies; for multipart we need a custom call)
     try {

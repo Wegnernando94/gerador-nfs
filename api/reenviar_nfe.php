@@ -1,6 +1,6 @@
 <?php
 ob_start();
-require_once 'session_check.php';
+require_once __DIR__ . '/../helpers/session_check.php';
 ob_clean();
 header('Content-Type: application/json');
 require_once __DIR__ . '/auth_nuvem.php';

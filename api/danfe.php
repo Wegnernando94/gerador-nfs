@@ -1,6 +1,13 @@
 <?php
-require_once 'session_check.php';
-$config = require 'config.php';
+require_once __DIR__ . '/../helpers/session_check.php';
+
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    http_response_code(405);
+    header('Allow: GET');
+    exit;
+}
+
+$config = require __DIR__ . '/../config/config.php';
 $clientId     = $config['client_id'];
 $clientSecret = $config['client_secret'];
 
@@ -13,7 +20,9 @@ try {
     curl_setopt_array($chAuth, [
         CURLOPT_POST           => true,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_CAINFO         => __DIR__ . '/../certs/cacert.pem',
         CURLOPT_POSTFIELDS     => http_build_query(['grant_type' => 'client_credentials', 'scope' => 'nfe']),
         CURLOPT_HTTPHEADER     => [
             "Authorization: Basic " . base64_encode(trim($clientId) . ":" . trim($clientSecret)),
@@ -31,7 +40,9 @@ try {
     $chPdf = curl_init("https://api.sandbox.nuvemfiscal.com.br/nfe/{$id}/pdf");
     curl_setopt_array($chPdf, [
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_CAINFO         => __DIR__ . '/../certs/cacert.pem',
         CURLOPT_HTTPHEADER     => ["Authorization: Bearer " . $authData->access_token]
     ]);
     $pdf      = curl_exec($chPdf);
