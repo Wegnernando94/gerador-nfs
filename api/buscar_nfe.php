@@ -78,7 +78,7 @@ try {
             CURLOPT_HTTPHEADER     => ["Authorization: Bearer " . $authData->access_token]
         ]);
         // SSL certificate fallback
-        $cafile = '/var/www/html/certs/cacert.pem';
+        $cafile = __DIR__ . '/../certs/cacert.pem';
         if (file_exists($cafile)) {
             curl_setopt($ch, CURLOPT_CAINFO, $cafile);
         } else {
@@ -146,31 +146,41 @@ try {
 
     $result = $jsonNota ?: $nota;
 
-    // Verifica se o próprio /nfe/{id} já traz infNFe inline
+    // Tenta extrair o infNFe de diversas estruturas possíveis da API Nuvem Fiscal
+    $infNFeRecuperado = null;
+
     if (isset($result['infNFe'])) {
-        // Já temos — nada a fazer
-    } elseif (isset($result['body']['infNFe'])) {
-        $result['infNFe'] = $result['body']['infNFe'];
-    } elseif (isset($result['body']['NFe']['infNFe'])) {
-        $result['infNFe'] = $result['body']['NFe']['infNFe'];
+        $infNFeRecuperado = $result['infNFe'];
     } elseif (isset($result['documento']['infNFe'])) {
-        $result['infNFe'] = $result['documento']['infNFe'];
+        $infNFeRecuperado = $result['documento']['infNFe'];
+    } elseif (isset($result['body']['infNFe'])) {
+        $infNFeRecuperado = $result['body']['infNFe'];
+    } elseif (isset($result['body']['NFe']['infNFe'])) {
+        $infNFeRecuperado = $result['body']['NFe']['infNFe'];
     }
 
-    // Tenta /body (XML parseado) para obter infNFe com det, dest, emit etc.
-    if (!isset($result['infNFe']) && $bodyCode === 200) {
+    if ($infNFeRecuperado) {
+        $result['infNFe'] = $infNFeRecuperado;
+    }
+
+    // Tenta /body (XML parseado) se ainda não temos o infNFe completo (com itens)
+    if ((!isset($result['infNFe']) || empty($result['infNFe']['det'])) && $bodyCode === 200) {
         $bodyData = json_decode($bodyResp, true);
         if ($bodyData) {
+            $foundInf = null;
             if (isset($bodyData['NFe']['infNFe'])) {
-                $result['infNFe'] = $bodyData['NFe']['infNFe'];
+                $foundInf = $bodyData['NFe']['infNFe'];
             } elseif (isset($bodyData['infNFe'])) {
-                $result['infNFe'] = $bodyData['infNFe'];
+                $foundInf = $bodyData['infNFe'];
+            }
+            if ($foundInf) {
+                $result['infNFe'] = $foundInf;
             }
         }
     }
 
-    // Se /body não trouxe infNFe, tenta /xml e parseia
-    if (!isset($result['infNFe'])) {
+    // Se ainda não temos infNFe ou ele está sem itens (det), tenta /xml e parseia
+    if (!isset($result['infNFe']) || empty($result['infNFe']['det'])) {
         $chXml = curl_init("https://api.sandbox.nuvemfiscal.com.br/nfe/{$id}/xml");
         curl_setopt_array($chXml, [
             CURLOPT_RETURNTRANSFER => true,
@@ -178,8 +188,7 @@ try {
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_HTTPHEADER     => ["Authorization: Bearer " . $authData->access_token]
         ]);
-        // SSL certificate fallback
-        $cafile = '/var/www/html/certs/cacert.pem';
+        $cafile = __DIR__ . '/../certs/cacert.pem';
         if (file_exists($cafile)) {
             curl_setopt($chXml, CURLOPT_CAINFO, $cafile);
         } else {
@@ -196,18 +205,24 @@ try {
             if ($xml) {
                 $jsonStr = json_encode($xml);
                 $arr = json_decode($jsonStr, true);
+                $foundInf = null;
                 if (isset($arr['NFe']['infNFe'])) {
-                    $result['infNFe'] = $arr['NFe']['infNFe'];
+                    $foundInf = $arr['NFe']['infNFe'];
                 } elseif (isset($arr['infNFe'])) {
-                    $result['infNFe'] = $arr['infNFe'];
+                    $foundInf = $arr['infNFe'];
+                }
+                if ($foundInf) {
+                    $result['infNFe'] = $foundInf;
                 }
             }
         }
     }
 
     // Último recurso: reconstrói infNFe a partir dos campos planos da API
-    if (!isset($result['infNFe'])) {
-        $synth = ['ide' => [], 'emit' => [], 'dest' => [], 'det' => [], 'total' => []];
+    if (!isset($result['infNFe']) || empty($result['infNFe']['det'])) {
+        // Preserva o que já temos se existir
+        $synth = $result['infNFe'] ?? ['ide' => [], 'emit' => [], 'dest' => [], 'det' => [], 'total' => []];
+        if (empty($synth['det'])) $synth['det'] = [];
 
         // ide
         $synth['ide'] = [
@@ -246,15 +261,17 @@ try {
             $synth['dest']['indIEDest'] = $destApi['indicador_inscricao_estadual'] ?? 9;
         }
 
-        // itens — do campo "itens" da API (se existir)
-        $itensApi = $result['itens'] ?? $result['produtos'] ?? [];
+        // itens — do campo "itens", "produtos" ou "detalhes" da API (se existir)
+        $itensApi = $result['itens'] ?? $result['produtos'] ?? $result['detalhes'] ?? [];
         if (is_array($itensApi)) {
             foreach ($itensApi as $i => $item) {
+                // Tenta mapear os campos comuns da API Nuvem Fiscal para o padrão infNFe
                 $synth['det'][] = [
                     'prod' => [
-                        'xProd'  => $item['descricao'] ?? $item['xProd'] ?? 'Item ' . ($i+1),
+                        'xProd'  => $item['descricao'] ?? $item['xProd'] ?? $item['nome'] ?? 'Item ' . ($i+1),
                         'qCom'   => $item['quantidade'] ?? $item['qCom'] ?? 1,
                         'vUnCom' => $item['valor_unitario'] ?? $item['vUnCom'] ?? 0,
+                        'uCom'   => $item['unidade'] ?? $item['uCom'] ?? 'UN',
                         'CFOP'   => $item['cfop'] ?? $item['CFOP'] ?? '5102',
                     ]
                 ];

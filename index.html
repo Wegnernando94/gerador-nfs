@@ -1270,7 +1270,9 @@
           <div class="field-inline" style="margin:0;"><label>Razão Social</label><input type="text" id="cteEmitNome" readonly style="opacity:.7;"></div>
           <div class="field-inline" style="margin:0;"><label>CNPJ</label><input type="text" id="cteEmitCNPJ" readonly style="opacity:.7;"></div>
         </div>
-        <div class="grid-2" style="margin-top:10px;">
+        <div style="margin-top:8px; text-align:right;">
+           <button class="btn btn-ghost" style="font-size:10px; color:var(--primary);" onclick="cteHabilitarEmpresa()">⚡ Ativar CT-e na Nuvem Fiscal para este CNPJ</button>
+        </div>        <div class="grid-2" style="margin-top:10px;">
           <div class="field" style="margin:0;"><label>IE</label><input type="text" id="cteEmitIE" placeholder="Inscrição Estadual"></div>
           <div class="field" style="margin:0;">
             <label>CRT <span class="tip" data-tip="1: Simples Nacional. 2: Simples Nacional – excesso de sublimite. 3: Regime Normal.">?</span></label>
@@ -1506,8 +1508,9 @@
           <button class="btn btn-ghost" style="font-size:11px;" onclick="cteAddNFe()">+ NF-e (Chave)</button>
           <button class="btn btn-ghost" style="font-size:11px;" onclick="cteAddNF()">+ NF papel</button>
           <button class="btn btn-ghost" style="font-size:11px;" onclick="cteAddOutro()">+ Outro Doc.</button>
-        </div>
-        <div style="margin-top:10px;">
+          <button class="btn btn-ghost" style="font-size:11px; color:var(--primary);" onclick="document.getElementById('cteImportXmlInput').click()">📂 Importar XML Local</button>
+          <input type="file" id="cteImportXmlInput" style="display:none;" accept=".xml" onchange="cteImportarXmlLocal(this)">
+        </div>        <div style="margin-top:10px;">
           <button class="btn btn-primary" style="font-size:11px;" onclick="cteBuscarNFesEmitente()">
             🔍 Buscar NF-es da Transportadora Emitente
           </button>
