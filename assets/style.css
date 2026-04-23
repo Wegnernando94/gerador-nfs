@@ -166,6 +166,7 @@ body {
   border-radius: var(--radius-lg);
   padding: 20px;
   transition: var(--transition);
+  overflow: visible;
 }
 
 .card:hover {
@@ -251,17 +252,65 @@ body {
   letter-spacing: .2px;
 }
 
+.field-inline {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+  overflow: visible;
+}
+
+.field-inline label {
+  margin-bottom: 0;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  text-align: right;
+  min-width: 100px;
+  white-space: nowrap;
+}
+
+.field-inline .combobox-container {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.field-inline input,
+.field-inline select {
+  flex: 1;
+  min-width: 0;
+}
+
 /* =============================================
    COMBOBOX
    ============================================= */
-.combobox-wrap { position: relative; }
-.combobox-input { width: 100%; }
+.combobox-wrap,
+.combobox-container {
+  position: relative;
+  z-index: 100;
+  width: 100%;
+}
+
+.combobox-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .combobox-list {
-  position: absolute; z-index: 1100; width: 100%;
-  background: var(--bg2); border: 1px solid var(--border2);
-  border-radius: var(--radius-sm); max-height: 200px; overflow-y: auto;
-  display: none; box-shadow: 0 6px 20px rgba(0,0,0,.5);
-  margin-top: 3px;
+  position: absolute;
+  z-index: 1100;
+  width: 100%;
+  top: 100%;
+  left: 0;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  max-height: 240px;
+  overflow-y: auto;
+  display: none;
+  box-shadow: 0 6px 20px rgba(0,0,0,.5);
+  margin-top: 4px;
+  pointer-events: auto;
 }
 .combobox-list.open { display: block; }
 .combobox-option {
@@ -387,10 +436,10 @@ input[type="number"] { -moz-appearance: textfield; }
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
 
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-.grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; overflow: visible; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; overflow: visible; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; overflow: visible; }
+.grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; overflow: visible; }
 
 /* Painel de tributos calculados */
 .trib-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-top: 12px; }
@@ -756,10 +805,11 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
    ============================================= */
 .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
 
-#tabelaNfes {
+#tabelaNfes, #tabelaCtes {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
+  table-layout: fixed;
 }
 
 #tabelaNfes thead th {
@@ -767,28 +817,63 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
   color: var(--text2);
   font-size: 11px;
   font-weight: 600;
-  padding: 10px 12px;
+  padding: 0;
   text-align: left;
   border-bottom: 1px solid var(--border);
   text-transform: uppercase;
   letter-spacing: .4px;
   white-space: nowrap;
+  position: relative; /* Para o resizer absoluto */
 }
 
-#tabelaNfes tbody td {
+.th-resizer {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  overflow: hidden;
+  min-width: 40px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.resizer-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+  user-select: none;
+}
+
+.resizer-handle:hover, .resizer-handle.resizing {
+  background: var(--primary);
+  opacity: 0.5;
+}
+
+#tabelaNfes tbody td, #tabelaCtes tbody td {
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
   color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-#tabelaNfes tbody tr:last-child td { border-bottom: none; }
-
-#tabelaNfes tbody tr:hover td {
-  background: var(--card2);
+/* Permitir que a coluna de ações mostre tudo */
+#tabelaNfes td:last-child, #tabelaCtes td:last-child {
+  overflow: visible;
+  white-space: normal;
 }
 
-.table-actions { display: flex; gap: 6px; }
+.table-actions { 
+  display: flex; 
+  gap: 6px; 
+  flex-wrap: nowrap; /* Mantém em linha para não quebrar o layout da tabela */
+  min-width: max-content; /* Garante que os botões não encolham */
+}
 
 .paginacao {
   display: flex;
@@ -980,6 +1065,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
   border-radius: var(--radius);
   padding: 16px;
   margin-bottom: 16px;
+  overflow: visible;
 }
 
 .emp-section-title {

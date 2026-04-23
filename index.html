@@ -505,14 +505,14 @@
             <table id="tabelaNfes">
                 <thead>
                     <tr>
-                        <th>Emissão</th>
-                        <th>Série / Nº</th>
-                        <th>Emitente (CNPJ)</th>
-                        <th>Destinatário</th>
-                        <th>Valor</th>
-                        <th>Status</th>
-                        <th>Chave</th>
-                        <th>Ações</th>
+                        <th><div class="th-resizer">Emissão</div></th>
+                        <th><div class="th-resizer">Série / Nº</div></th>
+                        <th><div class="th-resizer">Emitente (CNPJ)</div></th>
+                        <th><div class="th-resizer">Destinatário</div></th>
+                        <th><div class="th-resizer">Valor</div></th>
+                        <th><div class="th-resizer">Status</div></th>
+                        <th><div class="th-resizer">Chave</div></th>
+                        <th><div class="th-resizer">Ações</div></th>
                     </tr>
                 </thead>
                 <tbody id="corpoTabela">
@@ -1125,14 +1125,14 @@
             <table id="tabelaCtes">
                 <thead>
                     <tr>
-                        <th>Emissão</th>
-                        <th>Série / Nº</th>
-                        <th>Remetente</th>
-                        <th>Destinatário</th>
-                        <th>Valor Frete</th>
-                        <th>Status</th>
-                        <th>Chave</th>
-                        <th>Ações</th>
+                        <th><div class="th-resizer">Emissão</div></th>
+                        <th><div class="th-resizer">Série / Nº</div></th>
+                        <th><div class="th-resizer">Remetente</div></th>
+                        <th><div class="th-resizer">Destinatário</div></th>
+                        <th><div class="th-resizer">Valor Frete</div></th>
+                        <th><div class="th-resizer">Status</div></th>
+                        <th><div class="th-resizer">Chave</div></th>
+                        <th><div class="th-resizer">Ações</div></th>
                     </tr>
                 </thead>
                 <tbody id="corpoCtes">
@@ -1258,17 +1258,17 @@
     <div id="cteAbaEmit" class="emp-tab-content" style="padding-top:12px;">
       <div class="emp-section">
         <div class="emp-section-title">🏢 Empresa Transportadora (Emitente do CT-e)</div>
-        <div class="field">
-          <label>Selecionar Transportadora Cadastrada</label>
-          <div class="combobox-wrap">
-            <input type="text" id="cbCteEmit" class="combobox-input" placeholder="Buscar por nome ou CNPJ..." autocomplete="off">
+        <div class="field-inline">
+          <label>Transportadora</label>
+          <div class="combobox-container">
+            <input type="text" id="cbCteEmit" placeholder="Buscar por nome ou CNPJ..." autocomplete="off">
             <div id="cbCteEmitList" class="combobox-list"></div>
+            <select id="dropCteEmit" style="display:none;" onchange="cteSelecionarEmitente(this)"></select>
           </div>
-          <select id="dropCteEmit" style="display:none;" onchange="cteSelecionarEmitente(this)"><option value="">...</option></select>
         </div>
         <div class="grid-2">
-          <div class="field" style="margin:0;"><label>Razão Social</label><input type="text" id="cteEmitNome" readonly style="opacity:.7;"></div>
-          <div class="field" style="margin:0;"><label>CNPJ</label><input type="text" id="cteEmitCNPJ" readonly style="opacity:.7;"></div>
+          <div class="field-inline" style="margin:0;"><label>Razão Social</label><input type="text" id="cteEmitNome" readonly style="opacity:.7;"></div>
+          <div class="field-inline" style="margin:0;"><label>CNPJ</label><input type="text" id="cteEmitCNPJ" readonly style="opacity:.7;"></div>
         </div>
         <div class="grid-2" style="margin-top:10px;">
           <div class="field" style="margin:0;"><label>IE</label><input type="text" id="cteEmitIE" placeholder="Inscrição Estadual"></div>
@@ -1295,10 +1295,15 @@
       <div class="emp-section">
         <div class="emp-section-title">📦 Remetente (Quem envia a carga)</div>
         <div class="grid-2" style="gap:10px;">
-          <div class="field" style="margin:0;"><label>CNPJ / CPF</label>
-            <input type="text" id="cteRemCNPJ" placeholder="CNPJ ou CPF (somente números)" maxlength="18"
-                   oninput="cteMascaraDoc(this,'rem')"></div>
-          <div class="field" style="margin:0;"><label>Razão Social / Nome</label>
+          <div class="field-inline" style="margin:0;"><label>CNPJ / CPF</label>
+            <div class="combobox-container">
+              <input type="text" id="cbCteRem" placeholder="Selecione ou digite CNPJ..." autocomplete="off">
+              <div id="cbCteRemList" class="combobox-list"></div>
+              <select id="dropCteRem" style="display:none;" onchange="cteSelecionarRemetente(this)"></select>
+            </div>
+            <input type="hidden" id="cteRemCNPJ">
+          </div>
+          <div class="field-inline" style="margin:0;"><label>Razão Social</label>
             <input type="text" id="cteRemNome" placeholder="Nome do remetente"></div>
         </div>
         <div class="grid-2" style="gap:10px; margin-top:8px;">
@@ -1321,10 +1326,15 @@
       <div class="emp-section">
         <div class="emp-section-title">🏁 Destinatário (Quem recebe a carga)</div>
         <div class="grid-2" style="gap:10px;">
-          <div class="field" style="margin:0;"><label>CNPJ / CPF</label>
-            <input type="text" id="cteDestCNPJ" placeholder="CNPJ ou CPF (somente números)" maxlength="18"
-                   oninput="cteMascaraDoc(this,'dest')"></div>
-          <div class="field" style="margin:0;"><label>Razão Social / Nome</label>
+          <div class="field-inline" style="margin:0;"><label>CNPJ / CPF</label>
+            <div class="combobox-container">
+              <input type="text" id="cbCteDest" placeholder="Selecione ou digite CNPJ..." autocomplete="off">
+              <div id="cbCteDestList" class="combobox-list"></div>
+              <select id="dropCteDest" style="display:none;" onchange="cteSelecionarDestinatario(this)"></select>
+            </div>
+            <input type="hidden" id="cteDestCNPJ">
+          </div>
+          <div class="field-inline" style="margin:0;"><label>Razão Social</label>
             <input type="text" id="cteDestNome" placeholder="Nome do destinatário"></div>
         </div>
         <div class="grid-2" style="gap:10px; margin-top:8px;">
@@ -1368,29 +1378,40 @@
         </div>
         <div id="cteTomadorOutrosSection" style="display:none; margin-top:16px;">
           <div class="emp-section-title" style="font-size:1rem;">🧾 Dados do Tomador Outros</div>
-          <div class="grid-3" style="gap:10px; margin-top:8px;">
-            <div class="field" style="margin:0;"><label>CNPJ</label><input type="text" id="cteToma4CNPJ" placeholder="00000000000000" maxlength="18" oninput="cteMascaraDoc(this)"></div>
-            <div class="field" style="margin:0;"><label>CPF</label><input type="text" id="cteToma4CPF" placeholder="00000000000" maxlength="14" oninput="cteMascaraDoc(this)"></div>
-            <div class="field" style="margin:0;"><label>Razão Social / Nome</label><input type="text" id="cteToma4Nome" placeholder="Nome do tomador"></div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-top:8px;">
+            <div class="field" style="margin:0;">
+                <label>CNPJ</label>
+                <div style="display:flex; gap:4px;">
+                    <input type="text" id="cteTomaCNPJ" placeholder="00000000000000" maxlength="18" oninput="cteMascaraDoc(this)">
+                    <button class="btn btn-ghost" title="Consultar CNPJ" onclick="cteConsultarCnpjTomador(this.previousElementSibling)" style="padding: 2px 8px;">🔍</button>
+                </div>
+            </div>
+            <div class="field" style="margin:0;">
+                <label>CPF</label>
+                <div style="display:flex; gap:4px;">
+                    <input type="text" id="cteTomaCPF" placeholder="00000000000" maxlength="14" oninput="cteMascaraDoc(this)">
+                </div>
+            </div>
+            <div class="field" style="margin:0;"><label>Razão Social / Nome</label><input type="text" id="cteTomaNome" placeholder="Nome do tomador"></div>
           </div>
-          <div class="grid-3" style="gap:10px; margin-top:8px;">
-            <div class="field" style="margin:0;"><label>Nome Fantasia</label><input type="text" id="cteToma4xFant" placeholder="Nome fantasia"></div>
-            <div class="field" style="margin:0;"><label>IE</label><input type="text" id="cteToma4IE" placeholder="ISENTO ou número"></div>
-            <div class="field" style="margin:0;"><label>E-mail</label><input type="email" id="cteToma4Email" placeholder="email@empresa.com"></div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-top:8px;">
+            <div class="field" style="margin:0;"><label>Nome Fantasia</label><input type="text" id="cteTomaxFant" placeholder="Nome fantasia"></div>
+            <div class="field" style="margin:0;"><label>IE</label><input type="text" id="cteTomaIE" placeholder="ISENTO ou número"></div>
+            <div class="field" style="margin:0;"><label>E-mail</label><input type="email" id="cteTomaEmail" placeholder="email@empresa.com"></div>
           </div>
           <div class="grid-2" style="gap:10px; margin-top:8px;">
-            <div class="field" style="margin:0;"><label>Telefone</label><input type="text" id="cteToma4Fone" placeholder="(XX) XXXXX-XXXX"></div>
-            <div class="field" style="margin:0;"><label>Município</label><input type="text" id="cteToma4xMun" placeholder="Cidade"></div>
+            <div class="field" style="margin:0;"><label>Telefone</label><input type="text" id="cteTomaFone" placeholder="(XX) XXXXX-XXXX"></div>
+            <div class="field" style="margin:0;"><label>Município</label><input type="text" id="cteTomaxMun" placeholder="Cidade"></div>
           </div>
-          <div class="grid-4" style="gap:10px; margin-top:8px;">
-            <div class="field" style="margin:0;"><label>Logradouro</label><input type="text" id="cteToma4xLgr" placeholder="Rua, Av..."></div>
-            <div class="field" style="margin:0;"><label>Número</label><input type="text" id="cteToma4nro" placeholder="SN"></div>
-            <div class="field" style="margin:0;"><label>Bairro</label><input type="text" id="cteToma4xBairro" placeholder="Bairro"></div>
-            <div class="field" style="margin:0;"><label>CEP</label><input type="text" id="cteToma4CEP" placeholder="00000000" maxlength="8"></div>
+          <div style="display:grid; grid-template-columns:1fr 80px 1fr 70px; gap:10px; margin-top:8px;">
+            <div class="field" style="margin:0;"><label>Logradouro</label><input type="text" id="cteTomaxLgr" placeholder="Rua, Av..."></div>
+            <div class="field" style="margin:0;"><label>Número</label><input type="text" id="cteTomanro" placeholder="SN"></div>
+            <div class="field" style="margin:0;"><label>Bairro</label><input type="text" id="cteTomaxBairro" placeholder="Bairro"></div>
+            <div class="field" style="margin:0;"><label>CEP</label><input type="text" id="cteTomaCEP" placeholder="00000000" maxlength="8"></div>
           </div>
-          <div class="grid-3" style="gap:10px; margin-top:8px;">
-            <div class="field" style="margin:0;"><label>UF</label><input type="text" id="cteToma4UF" placeholder="SP" maxlength="2" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
-            <div class="field" style="margin:0;"><label>Cód. IBGE</label><input type="text" id="cteToma4cMun" placeholder="0000000" maxlength="7"></div>
+          <div style="display:grid; grid-template-columns:1fr 60px 100px; gap:10px; margin-top:8px;">
+            <div class="field" style="margin:0;"><label>UF</label><input type="text" id="cteTomaUF" placeholder="SP" maxlength="2" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
+            <div class="field" style="margin:0;"><label>Cód. IBGE</label><input type="text" id="cteTomacMun" placeholder="0000000" maxlength="7"></div>
             <div class="field" style="margin:0;"><label>Informe ao menos CNPJ ou CPF</label><input type="text" readonly value="Preencha os dados acima" style="background:#f7f7f7; border:1px solid #ddd;" tabindex="-1"></div>
           </div>
         </div>
@@ -1604,6 +1625,7 @@
       <div style="display:flex; gap:10px; align-items:center;">
         <span id="cteResumoValor" style="font-weight:600; color:var(--green); font-size:14px;"></span>
         <button class="btn btn-ghost" onclick="cteConferirPayload()">🔍 Conferir JSON</button>
+        <button class="btn btn-warning" id="btnTestarCte" onclick="testarCte()" style="color:#000;">🧪 Testar (sem enviar)</button>
         <button class="btn btn-success btn-lg" id="btnTransmitirCte" onclick="transmitirCte()">
           🚀 Transmitir CT-e
         </button>

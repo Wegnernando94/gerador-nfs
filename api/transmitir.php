@@ -94,6 +94,51 @@ try {
     $httpCode = curl_getinfo($chNfe, CURLINFO_HTTP_CODE);
     curl_close($chNfe);
 
+    // Se autorizado, logar no histórico local para correlação no CT-e
+    if ($httpCode === 200 || $httpCode === 201) {
+        $resObj = json_decode($resposta, true);
+        if (isset($resObj['id']) || (isset($resObj['status']) && $resObj['status'] === 'autorizado')) {
+            $nfeData = json_decode($jsonBody, true);
+            $transpCnpj = $nfeData['infNFe']['transp']['transporta']['CNPJ'] ?? '';
+            
+            if ($transpCnpj) {
+                $historicoArq = __DIR__ . '/../data/historico_nfes.json';
+                $historico = [];
+                if (file_exists($historicoArq)) {
+                    $historico = json_decode(file_get_contents($historicoArq), true) ?? [];
+                }
+                
+                $novaNfe = [
+                    'chave'      => $resObj['chave_acesso'] ?? '',
+                    'id'         => $resObj['id'] ?? '',
+                    'numero'     => $resObj['numero'] ?? '',
+                    'serie'      => $resObj['serie'] ?? '',
+                    'emit_cnpj'  => $nfeData['infNFe']['emit']['CNPJ'] ?? '',
+                    'dest_nome'  => $nfeData['infNFe']['dest']['xNome'] ?? '',
+                    'transp_cnpj'=> $transpCnpj,
+                    'valor'      => $nfeData['infNFe']['total']['ICMSTot']['vNF'] ?? 0,
+                    'data'       => date('c'),
+                    'status'     => 'autorizado'
+                ];
+                
+                // Evitar duplicados
+                $exists = false;
+                foreach ($historico as $h) {
+                    if (($h['chave'] && $h['chave'] === $novaNfe['chave']) || ($h['id'] && $h['id'] === $novaNfe['id'])) {
+                        $exists = true; break;
+                    }
+                }
+                
+                if (!$exists) {
+                    $historico[] = $novaNfe;
+                    // Manter apenas os últimos 500 registros para não crescer infinitamente
+                    if (count($historico) > 500) array_shift($historico);
+                    file_put_contents($historicoArq, json_encode($historico));
+                }
+            }
+        }
+    }
+
     // 6. Devolve a resposta exata da API para o seu JavaScript
     http_response_code($httpCode);
     echo $resposta;

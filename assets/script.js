@@ -1259,6 +1259,7 @@ async function abrirConsulta() {
     console.log('abrirConsulta() chamada');
     document.getElementById('modalConsulta').style.display = 'block';
     document.body.style.overflow = 'hidden';
+    initTableResizer('tabelaNfes');
     await popularEmpresasConsulta();
     buscarNotas(0);
 }
@@ -1386,16 +1387,15 @@ async function buscarNotas(skip) {
                 const st      = n.status || 'outro';
                 const badgeCls = { autorizado:'badge-autorizado', rejeitado:'badge-rejeitado', pendente:'badge-pendente', cancelado:'badge-cancelado' }[st] || 'badge-outro';
                 const chave   = n.chave || '-';
-                const chaveShort = chave !== '-' ? chave.slice(0,10) + '...' : '-';
                 const podeImprimir = st === 'autorizado';
                 return `<tr data-numero="${n.numero || ''}" data-cnpj="${cnpjEmit}" data-dest="${dest.toLowerCase()}">
                     <td>${data}</td>
                     <td>${n.serie || '-'} / ${n.numero || '-'}</td>
-                    <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${emitente}">${emitente}</td>
-                    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${dest}">${dest}</td>
+                    <td title="${emitente}">${emitente}</td>
+                    <td title="${dest}">${dest}</td>
                     <td>${valor}</td>
                     <td><span class="badge ${badgeCls}">${st}</span></td>
-                    <td style="font-family:monospace;font-size:0.75em;" title="${chave}">${chaveShort}</td>
+                    <td style="font-family:monospace; font-size:0.75em;" title="${chave}">${chave}</td>
                     <td style="white-space:nowrap;">
                         ${podeImprimir ? `
                         <button class="btn btn-primary" style="padding:4px 10px;font-size:0.8em;" onclick="verDanfeConsulta('${n.id}','${n.serie}/${n.numero}')">Ver PDF</button>
@@ -1543,7 +1543,7 @@ function showToast(msg, type = 'info', duration = 5000) {
     const container = document.getElementById('toast-container');
     if (!container) return;
     const toast = document.createElement('div');
-    const icon = { success: '✅', error: '❌', info: 'ℹ️' }[type] || 'ℹ️';
+    const icon = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' }[type] || 'ℹ️';
     toast.className = `toast toast-${type}`;
     toast.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
     container.appendChild(toast);
@@ -1552,6 +1552,8 @@ function showToast(msg, type = 'info', duration = 5000) {
         setTimeout(() => toast.remove(), 300);
     }, duration);
 }
+
+const mostrarToast = showToast;
 
 function abrirDanfe() {
     if (!_ultimoIdNfe) return;
@@ -1647,9 +1649,27 @@ async function carregarDropdownsEmpresas() {
         document.getElementById('dropEmit').innerHTML = '<option value="">Selecione...</option>' + opt;
         document.getElementById('dropDest').innerHTML = '<option value="">Selecione...</option>' + opt;
         document.getElementById('dropTransp').innerHTML = '<option value="">Selecione transportadora...</option>' + optTransp;
+        
+        // Popular também os dropdowns do CT-e se existirem
+        const dropCteEmit = document.getElementById('dropCteEmit');
+        if (dropCteEmit) dropCteEmit.innerHTML = '<option value="">Selecione transportadora...</option>' + optTransp;
+
+        const dropCteRem = document.getElementById('dropCteRem');
+        if (dropCteRem) dropCteRem.innerHTML = '<option value="">Selecione remetente...</option>' + opt;
+
+        const dropCteDest = document.getElementById('dropCteDest');
+        if (dropCteDest) dropCteDest.innerHTML = '<option value="">Selecione destinatário...</option>' + opt;
+        
+        const filtroEmpresaCte = document.getElementById('filtroEmpresaCte');
+        if (filtroEmpresaCte) filtroEmpresaCte.innerHTML = '<option value="">Selecione transportadora...</option>' + optTransp;
+
         initCombobox('cbEmit', 'dropEmit');
         initCombobox('cbDest', 'dropDest');
         initCombobox('cbTransp', 'dropTransp');
+        initCombobox('cbCteEmit', 'dropCteEmit');
+        initCombobox('cbCteRem', 'dropCteRem');
+        initCombobox('cbCteDest', 'dropCteDest');
+        initCombobox('cbFiltroCte', 'filtroEmpresaCte');
     } catch(e) { console.error("Erro ao carregar empresas", e); }
 }
 
@@ -3071,3 +3091,192 @@ document.addEventListener('DOMContentLoaded', () => {
         textarea.addEventListener('input', atualizarContadorCancelamento);
     }
 });
+
+// ==========================================
+// FUNÇÕES DE SELEÇÃO DE CT-e
+// ==========================================
+function cteSelecionarEmitente(sel) {
+    const d = sel.options[sel.selectedIndex].dataset;
+    document.getElementById('cteEmitNome').value = d.nome || "";
+    document.getElementById('cteEmitCNPJ').value = sel.value;
+    document.getElementById('cteEmitIE').value = d.ie || "";
+    document.getElementById('cteEmitUF').value = d.uf || "";
+    document.getElementById('cteEmitcMun').value = d.cmun || "";
+    document.getElementById('cteEmitxMun').value = d.xmun || "";
+    document.getElementById('cteEmitxLgr').value = d.xlgr || "";
+    document.getElementById('cteEmitnro').value = d.nro || "SN";
+    document.getElementById('cteEmitxBairro').value = d.xbairro || "";
+    document.getElementById('cteEmitCEP').value = d.cep || "";
+}
+
+function cteSelecionarRemetente(sel) {
+    const d = sel.options[sel.selectedIndex].dataset;
+    document.getElementById('cteRemCNPJ').value = sel.value;
+    document.getElementById('cteRemNome').value = d.nome || "";
+    document.getElementById('cteRemIE').value = d.ie || "";
+    document.getElementById('cteRemUF').value = d.uf || "";
+    document.getElementById('cteRemcMun').value = d.cmun || "";
+    document.getElementById('cteRemxMun').value = d.xmun || "";
+    document.getElementById('cteRemxLgr').value = d.xlgr || "";
+    document.getElementById('cteRemnro').value = d.nro || "SN";
+    document.getElementById('cteRemxBairro').value = d.xbairro || "";
+    document.getElementById('cteRemCEP').value = d.cep || "";
+}
+
+function cteSelecionarDestinatario(sel) {
+    const d = sel.options[sel.selectedIndex].dataset;
+    document.getElementById('cteDestCNPJ').value = sel.value;
+    document.getElementById('cteDestNome').value = d.nome || "";
+    document.getElementById('cteDestIE').value = d.ie || "";
+    document.getElementById('cteDestUF').value = d.uf || "";
+    document.getElementById('cteDestcMun').value = d.cmun || "";
+    document.getElementById('cteDestxMun').value = d.xmun || "";
+    document.getElementById('cteDestxLgr').value = d.xlgr || "";
+    document.getElementById('cteDestnro').value = d.nro || "SN";
+    document.getElementById('cteDestxBairro').value = d.xbairro || "";
+    document.getElementById('cteDestCEP').value = d.cep || "";
+}
+
+async function abrirEmissaoCte() {
+    const modal = document.getElementById('modalEmissaoCte');
+    if (!modal) return;
+    modal.style.display = 'block';
+
+    ['cbCteEmit','cbCteRem','cbCteDest','cbFiltroCte'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el._cbInited = false; el.value = ''; }
+    });
+
+    await carregarDropdownsEmpresas();
+    cteAba('id');
+}
+
+function fecharEmissaoCte() {
+    const modal = document.getElementById('modalEmissaoCte');
+    if (modal) modal.style.display = 'none';
+}
+
+function cteAba(aba) {
+    document.querySelectorAll('[id^="cteAba"]').forEach(el => {
+        if (el.id !== 'cteAlerta') el.classList.remove('active');
+    });
+    document.querySelectorAll('[id^="cteTab"]').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    const abaEl = document.getElementById('cteAba' + aba.charAt(0).toUpperCase() + aba.slice(1));
+    const btnEl = document.getElementById('cteTab' + aba.charAt(0).toUpperCase() + aba.slice(1));
+
+    if (abaEl) abaEl.classList.add('active');
+    if (btnEl) btnEl.classList.add('active');
+}
+
+async function buscarDadosNfePorChave(chave) {
+    if (!chave || chave.length < 44) {
+        console.warn('Chave de NF-e inválida');
+        return null;
+    }
+
+    try {
+        const params = new URLSearchParams({ chave: chave.replace(/\D/g, '') });
+        const resp = await fetch('api/consultar_nfes.php?' + params);
+        if (!resp.ok) return null;
+
+        const data = await resp.json();
+        if (!data || !data.data || data.data.length === 0) return null;
+
+        const nfe = data.data[0];
+        return {
+            chave: chave,
+            numero: nfe.numero,
+            serie: nfe.serie,
+            data_emissao: nfe.data_emissao,
+            valor_total: nfe.valor_total,
+            quantidade_itens: nfe.quantidade_itens || 0,
+            descricao: nfe.descricao_produtos || '',
+            cpf_cnpj_emitente: nfe.cpf_cnpj_emitente,
+            nome_emitente: nfe.nome_emitente,
+            cpf_cnpj_dest: nfe.cpf_cnpj_dest,
+            nome_dest: nfe.nome_dest
+        };
+    } catch (e) {
+        console.error('Erro ao buscar NF-e:', e);
+        return null;
+    }
+}
+
+function preencherNfeEmCtePelaChaave(chaveInput, targetPrefix) {
+    const chave = chaveInput.value.replace(/\D/g, '');
+    if (chave.length !== 44) {
+        mostrarToast('Chave deve ter 44 dígitos', 'error');
+        return;
+    }
+
+    buscarDadosNfePorChave(chave).then(nfe => {
+        if (!nfe) {
+            mostrarToast('NF-e não encontrada', 'error');
+            return;
+        }
+
+        const idPrefix = targetPrefix === 'remetente' ? 'cteRem' : 'cteDest';
+        document.getElementById(idPrefix + 'Chave').value = nfe.chave;
+        document.getElementById(idPrefix + 'Numero').value = nfe.numero;
+        document.getElementById(idPrefix + 'Serie').value = nfe.serie;
+        document.getElementById(idPrefix + 'ValorTotal').value = nfe.valor_total;
+        document.getElementById(idPrefix + 'QtdItens').value = nfe.quantidade_itens;
+
+        mostrarToast('NF-e carregada com sucesso', 'success');
+    });
+}
+
+/**
+ * Inicializa o redimensionamento manual de colunas para uma tabela
+ * @param {string} tableId ID da tabela
+ */
+function initTableResizer(tableId) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    
+    // Evita inicialização múltipla
+    if (table.dataset.resizerInited === 'true') return;
+    table.dataset.resizerInited = 'true';
+    
+    const ths = table.querySelectorAll('thead th');
+    
+    ths.forEach(th => {
+        // Cria o handle de redimensionamento
+        const handle = document.createElement('div');
+        handle.className = 'resizer-handle';
+        th.appendChild(handle);
+        
+        let startX, startWidth;
+        
+        handle.addEventListener('mousedown', function(e) {
+            startX = e.pageX;
+            startWidth = th.offsetWidth;
+            
+            handle.classList.add('resizing');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            
+            const onMouseMove = (e) => {
+                const delta = e.pageX - startX;
+                const newWidth = Math.max(40, startWidth + delta);
+                th.style.width = newWidth + 'px';
+                // Para table-layout: fixed, precisamos garantir que o width do TH seja respeitado
+                th.style.minWidth = newWidth + 'px';
+            };
+            
+            const onMouseUp = () => {
+                handle.classList.remove('resizing');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+            
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+    });
+}

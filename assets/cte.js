@@ -19,6 +19,12 @@ function irParaCte() {
     document.querySelector('.action-bar').style.display = 'none';
     document.getElementById('paginaCte').style.display = 'block';
     document.getElementById('btnConsultarNotas').style.display = 'none';
+    
+    // Inicializa resizer se disponível (função está no script.js global)
+    if (typeof initTableResizer === 'function') {
+        initTableResizer('tabelaCtes');
+    }
+    
     if (!_cteEmpresasCarregadas) cteCarregarEmpresas();
 }
 
@@ -179,80 +185,48 @@ async function cteCarregarEmpresas() {
     } catch(e) { console.warn('CT-e: erro ao carregar empresas', e); }
 }
 
+function cnpjMask(v) {
+    v = v.replace(/\D/g, '');
+    if (v.length <= 11) {
+        return v.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+    }
+    return v.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+}
+
 function ctePopularFiltroEmpresas() {
     const sel = document.getElementById('filtroEmpresaCte');
     if (!sel) return;
+    
+    // Filtra apenas transportadoras
+    const transportadoras = _cteEmpresas.filter(e => (e.tipo_empresa || 'cliente') === 'transportadora');
+    
     sel.innerHTML = '<option value="">Selecione a transportadora...</option>';
-    _cteEmpresas.forEach(e => {
+    transportadoras.forEach(e => {
         const opt = document.createElement('option');
         const cnpj = e.cpf_cnpj || e.cnpj || '';
         opt.value = cnpj;
         opt.textContent = (e.nome_razao_social || e.razao_social || e.nome || '') + ' — ' + cnpjMask(cnpj);
+        opt.dataset.nome = e.nome_razao_social || e.razao_social || e.nome || '';
         sel.appendChild(opt);
     });
-
-    const cb   = document.getElementById('cbFiltroCte');
-    const list = document.getElementById('cbFiltroCteList');
-    if (!cb || !list) return;
-
-    cb.addEventListener('input', () => {
-        const q = cb.value.toLowerCase();
-        list.innerHTML = '';
-        if (!q) { list.style.display = 'none'; return; }
-        const matches = _cteEmpresas.filter(e => {
-            const nome = (e.nome_razao_social||e.razao_social||e.nome||'').toLowerCase();
-            const cnpj = (e.cpf_cnpj||e.cnpj||'');
-            return nome.includes(q) || cnpj.includes(q.replace(/\D/g,''));
-        }).slice(0,8);
-        if (!matches.length) { list.style.display = 'none'; return; }
-        matches.forEach(e => {
-            const cnpj = e.cpf_cnpj||e.cnpj||'';
-            const li = document.createElement('div');
-            li.className = 'combobox-item';
-            li.textContent = (e.nome_razao_social||e.razao_social||e.nome||'') + ' — ' + cnpjMask(cnpj);
-            li.onclick = () => {
-                cb.value = li.textContent;
-                document.getElementById('filtroEmpresaCte').value = cnpj;
-                list.style.display = 'none';
-                buscarCtes(0);
-            };
-            list.appendChild(li);
-        });
-        list.style.display = 'block';
-    });
-    document.addEventListener('click', ev => { if (!cb.contains(ev.target)) list.style.display = 'none'; });
 }
 
 function cteInicializarComboboxEmit() {
-    const cb   = document.getElementById('cbCteEmit');
-    const list = document.getElementById('cbCteEmitList');
-    if (!cb || !list) return;
+    const drop = document.getElementById('dropCteEmit');
+    if (!drop) return;
 
-    cb.addEventListener('input', () => {
-        const q = cb.value.toLowerCase();
-        list.innerHTML = '';
-        if (!q) { list.style.display = 'none'; return; }
-        const matches = _cteEmpresas.filter(e => {
-            const nome = (e.nome_razao_social||e.razao_social||e.nome||'').toLowerCase();
-            const cnpj = (e.cpf_cnpj||e.cnpj||'');
-            return nome.includes(q) || cnpj.includes(q.replace(/\D/g,''));
-        }).slice(0,8);
-        if (!matches.length) { list.style.display = 'none'; return; }
-        matches.forEach(e => {
-            const cnpj = e.cpf_cnpj||e.cnpj||'';
-            const li = document.createElement('div');
-            li.className = 'combobox-item';
-            li.textContent = (e.nome_razao_social||e.razao_social||e.nome||'') + ' — ' + cnpjMask(cnpj);
-            li.onclick = () => {
-                cb.value = li.textContent;
-                list.style.display = 'none';
-                ctePreencherEmitente(e);
-            };
-            list.appendChild(li);
-        });
-        list.style.display = 'block';
+    // Filtra apenas transportadoras
+    const transportadoras = _cteEmpresas.filter(e => (e.tipo_empresa || 'cliente') === 'transportadora');
+
+    drop.innerHTML = '<option value="">Selecione a transportadora...</option>';
+    transportadoras.forEach(e => {
+        const opt = document.createElement('option');
+        const cnpj = e.cpf_cnpj || e.cnpj || '';
+        opt.value = cnpj;
+        opt.textContent = (e.nome_razao_social || e.razao_social || e.nome || '') + ' — ' + cnpjMask(cnpj);
+        opt.dataset.nome = e.nome_razao_social || e.razao_social || e.nome || '';
+        drop.appendChild(opt);
     });
-    document.addEventListener('click', ev => { if (!cb.contains(ev.target)) list.style.display = 'none'; });
 }
 
 function cteSelecionarEmitente(sel) {
@@ -266,15 +240,86 @@ function ctePreencherEmitente(e) {
     document.getElementById('cteEmitNome').value    = e.nome_razao_social||e.razao_social||e.nome||'';
     document.getElementById('cteEmitCNPJ').value    = cnpjMask(cnpj);
     document.getElementById('cteEmitIE').value      = e.inscricao_estadual||'';
-    document.getElementById('cteEmitUF').value      = (e.endereco && e.endereco.uf) || e.uf || '';
-    document.getElementById('cteEmitcMun').value    = (e.endereco && e.endereco.codigo_ibge) || e.codigo_ibge || '';
-    document.getElementById('cteEmitxMun').value    = (e.endereco && e.endereco.municipio) || e.cidade || '';
+    document.getElementById('cteEmitUF').value      = (e.endereco && (e.endereco.uf || e.endereco.estado)) || e.uf || '';
+    document.getElementById('cteEmitcMun').value    = (e.endereco && (e.endereco.codigo_ibge || e.endereco.codigo_municipio)) || e.codigo_ibge || '';
+    document.getElementById('cteEmitxMun').value    = (e.endereco && (e.endereco.municipio || e.endereco.cidade)) || e.cidade || '';
     document.getElementById('cteEmitxLgr').value    = (e.endereco && e.endereco.logradouro) || '';
-    document.getElementById('cteEmitnro').value     = (e.endereco && e.endereco.numero) || '';
+    document.getElementById('cteEmitnro').value     = (e.endereco && e.endereco.numero) || 'SN';
     document.getElementById('cteEmitxBairro').value = (e.endereco && e.endereco.bairro) || '';
     document.getElementById('cteEmitCEP').value     = ((e.endereco && e.endereco.cep)||'').replace(/\D/g,'');
     _cteCnpjAtual = cnpj.replace(/\D/g,'');
 }
+
+function cteSelecionarRemetente(sel) {
+    const cnpj = sel.value;
+    const emp  = _cteEmpresas.find(e => (e.cpf_cnpj||e.cnpj||'') === cnpj);
+    if (emp) ctePreencherParte(emp, 'Rem');
+}
+
+function cteSelecionarDestinatario(sel) {
+    const cnpj = sel.value;
+    const emp  = _cteEmpresas.find(e => (e.cpf_cnpj||e.cnpj||'') === cnpj);
+    if (emp) ctePreencherParte(emp, 'Dest');
+}
+
+function ctePreencherParte(e, prefix) {
+    const cnpj = e.cpf_cnpj||e.cnpj||'';
+    const end = e.endereco || {};
+    document.getElementById('cte' + prefix + 'CNPJ').value    = cnpj;
+    document.getElementById('cbCte' + prefix).value           = cnpjMask(cnpj); // Sincroniza combobox
+    document.getElementById('cte' + prefix + 'Nome').value    = e.nome_razao_social || e.razao_social || e.nome || '';
+    document.getElementById('cte' + prefix + 'IE').value      = e.inscricao_estadual || '';
+    document.getElementById('cte' + prefix + 'xLgr').value    = end.logradouro || '';
+    document.getElementById('cte' + prefix + 'nro').value     = end.numero || 'SN';
+    document.getElementById('cte' + prefix + 'xBairro').value = end.bairro || '';
+    document.getElementById('cte' + prefix + 'CEP').value     = (end.cep || '').replace(/\D/g,'');
+    document.getElementById('cte' + prefix + 'xMun').value    = end.municipio || end.cidade || '';
+    document.getElementById('cte' + prefix + 'UF').value      = end.uf || e.uf || '';
+    document.getElementById('cte' + prefix + 'cMun').value    = end.codigo_ibge || end.codigo_municipio || '';
+    
+    // Se for tomador automático, atualiza
+    cteToggleTomadorOutros();
+}
+
+async function cteConsultarCnpjTomador(input) {
+    const cnpj = input.value.replace(/\D/g, '');
+    if (cnpj.length !== 14) return;
+
+    const btn = input.nextElementSibling;
+    const originalText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = '⏳';
+
+    try {
+        const r = await fetch('api/buscar_cnpj.php?cnpj=' + cnpj);
+        const d = await r.json();
+        
+        if (d.error) {
+            mostrarToast('Erro ao consultar CNPJ: ' + d.error, 'error');
+            return;
+        }
+
+        const end = d.estabelecimento?.endereco || d.endereco || {};
+        document.getElementById('cteTomaNome').value   = d.razao_social || d.nome || '';
+        document.getElementById('cteTomaIE').value     = ''; 
+        document.getElementById('cteTomaxLgr').value   = end.logradouro || '';
+        document.getElementById('cteTomanro').value    = end.numero || 'SN';
+        document.getElementById('cteTomaxBairro').value = end.xBairro || end.bairro || '';
+        document.getElementById('cteTomaCEP').value    = (end.cep || '').replace(/\D/g, '');
+        document.getElementById('cteTomaxMun').value   = end.municipio?.descricao || end.cidade || '';
+        document.getElementById('cteTomaUF').value     = end.estado?.sigla || end.uf || '';
+        document.getElementById('cteTomacMun').value   = end.municipio?.codigo_ibge || end.codigo_municipio || '';
+
+        mostrarToast('Dados do tomador carregados!', 'success');
+    } catch (e) {
+        console.error(e);
+        mostrarToast('Erro ao buscar CNPJ do tomador.', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerText = originalText;
+    }
+}
+
 
 // ============================================================
 // LISTAR CT-es
@@ -647,12 +692,145 @@ function cteAddNFe() {
     var row = document.createElement('div');
     row.className = 'cte-row cte-row-nfe';
     row.innerHTML =
-        '<input type="text" placeholder="Chave NF-e (44 dígitos)" maxlength="44" inputmode="numeric"' +
+        '<input type="text" placeholder="Chave NF-e (44 dígitos ou com espaços)" maxlength="59" inputmode="numeric"' +
         ' style="font-family:monospace;font-size:11px;"' +
-        ' oninput="this.value=this.value.replace(/\\D/g,\'\').slice(0,44)">' +
+        ' oninput="this.value=this.value.replace(/[^\\d ]/g,\'\').slice(0,59)">' +
+        '<button class="btn-ghost" title="Importar dados da NFe" onclick="cteConsultarEImportarNFe(this.previousElementSibling)" style="padding: 2px 8px;">🔍</button>' +
         '<button class="btn-del" onclick="this.parentElement.remove()">✕</button>';
     d.appendChild(row);
 }
+
+async function cteConsultarEImportarNFe(input) {
+    const chave = input.value.replace(/\D/g, '');
+    if (chave.length !== 44) { mostrarToast('Chave de NFe inválida (deve ter 44 dígitos).', 'warning'); return; }
+
+    const btn = input.nextElementSibling;
+    const originalText = btn.innerText;
+    input.disabled = true;
+    btn.disabled = true;
+    btn.innerText = '⏳';
+
+    try {
+        const r = await fetch('api/buscar_nfe.php?chave=' + chave);
+        const d = await r.json();
+        
+        if (!r.ok || d.error) {
+            mostrarToast('Erro ao buscar NFe: ' + (d.error || 'Não encontrada'), 'error');
+            return;
+        }
+
+        const inf = d.infNFe;
+        if (!inf) { mostrarToast('Dados da NFe não encontrados no retorno.', 'error'); return; }
+
+        // 1. Importar Valor da Carga (vNF)
+        const vNF = parseFloat(inf.total?.ICMSTot?.vNF || inf.total?.vNF || 0);
+        if (vNF > 0) {
+            const vCargaEl = document.getElementById('cteVCarga');
+            if (vCargaEl) {
+                const atual = parseFloat(vCargaEl.value) || 0;
+                vCargaEl.value = (atual + vNF).toFixed(2);
+            }
+        }
+
+        // 2. Importar Produto Predominante se estiver vazio
+        const proProdEl = document.getElementById('cteProProd');
+        if (proProdEl && !proProdEl.value && inf.det && inf.det[0] && inf.det[0].prod) {
+            proProdEl.value = (inf.det[0].prod.xProd || '').substring(0, 60);
+        }
+
+        // 3. Importar Quantidades (Soma de qCom)
+        if (inf.det && inf.det.length > 0) {
+            let totalQ = 0;
+            inf.det.forEach(item => {
+                totalQ += parseFloat(item.prod?.qCom || 0);
+            });
+            
+            if (totalQ > 0) {
+                // Tenta encontrar uma linha de "VOLUMES" existente para somar
+                let rows = document.querySelectorAll('#cteQuantidades .cte-row-qtd');
+                let targetInput = null;
+                
+                for (let row of rows) {
+                    let descInput = row.querySelectorAll('input')[0];
+                    let valInput = row.querySelectorAll('input')[1];
+                    if (descInput && descInput.value.trim().toUpperCase() === 'VOLUMES') {
+                        targetInput = valInput;
+                        break;
+                    }
+                }
+
+                if (targetInput) {
+                    const atualQ = parseFloat(targetInput.value) || 0;
+                    targetInput.value = (atualQ + totalQ);
+                } else {
+                    // Se não achou linha de VOLUMES, verifica se a última linha está vazia
+                    let lastRow = rows[rows.length - 1];
+                    let lastInputV = lastRow ? lastRow.querySelectorAll('input')[1] : null;
+                    let lastInputD = lastRow ? lastRow.querySelectorAll('input')[0] : null;
+
+                    if (!lastRow || (lastInputV && parseFloat(lastInputV.value) > 0)) {
+                        cteAddQuantidade();
+                        lastRow = document.querySelector('#cteQuantidades .cte-row-qtd:last-child');
+                        lastInputV = lastRow.querySelectorAll('input')[1];
+                        lastInputD = lastRow.querySelectorAll('input')[0];
+                    }
+                    
+                    if (lastInputV) {
+                        lastInputV.value = totalQ;
+                        if (lastInputD) lastInputD.value = 'VOLUMES';
+                    }
+                }
+            }
+        }
+
+        // 4. Se Remetente estiver vazio, tenta preencher com dados da NFe (Emitente da NFe)
+        if (!document.getElementById('cteRemCNPJ').value && inf.emit) {
+            const e = inf.emit;
+            document.getElementById('cteRemCNPJ').value = e.CNPJ || e.CPF || '';
+            document.getElementById('cteRemNome').value = e.xNome || '';
+            document.getElementById('cteRemIE').value = e.IE || 'ISENTO';
+            if (e.enderEmit) {
+                const end = e.enderEmit;
+                document.getElementById('cteRemxLgr').value = end.xLgr || '';
+                document.getElementById('cteRemnro').value = end.nro || 'SN';
+                document.getElementById('cteRemxBairro').value = end.xBairro || '';
+                document.getElementById('cteRemCEP').value = end.CEP || '';
+                document.getElementById('cteRemxMun').value = end.xMun || '';
+                document.getElementById('cteRemUF').value = end.UF || '';
+                document.getElementById('cteRemcMun').value = end.cMun || '';
+            }
+        }
+
+        // 5. Se Destinatário estiver vazio, tenta preencher com dados da NFe (Destinatário da NFe)
+        if (!document.getElementById('cteDestCNPJ').value && inf.dest) {
+            const d = inf.dest;
+            document.getElementById('cteDestCNPJ').value = d.CNPJ || d.CPF || '';
+            document.getElementById('cteDestNome').value = d.xNome || '';
+            document.getElementById('cteDestIE').value = d.IE || 'ISENTO';
+            if (d.enderDest) {
+                const end = d.enderDest;
+                document.getElementById('cteDestxLgr').value = end.xLgr || '';
+                document.getElementById('cteDestnro').value = end.nro || 'SN';
+                document.getElementById('cteDestxBairro').value = end.xBairro || '';
+                document.getElementById('cteDestCEP').value = end.CEP || '';
+                document.getElementById('cteDestxMun').value = end.xMun || '';
+                document.getElementById('cteDestUF').value = end.UF || '';
+                document.getElementById('cteDestcMun').value = end.cMun || '';
+            }
+        }
+
+        mostrarToast('Dados da NFe importados para o CT-e!', 'success');
+        
+    } catch (e) {
+        console.error(e);
+        mostrarToast('Erro ao processar importação da NFe.', 'error');
+    } finally {
+        input.disabled = false;
+        btn.disabled = false;
+        btn.innerText = originalText;
+    }
+}
+
 
 function cteAddNF() {
     var d = document.getElementById('cteDocumentos');
@@ -686,44 +864,95 @@ async function cteBuscarNFesEmitente() {
 
     var div = document.getElementById('cteNFesDisponiveis');
     div.style.display = 'block';
-    div.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text2);">Buscando NF-es...</div>';
+    div.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text2);"><div class="spinner" style="width:16px;height:16px;margin:0 auto 4px;"></div>Buscando NF-es...</div>';
 
     try {
-        var r = await fetch('api/consultar_nfes.php?cpf_cnpj=' + cnpj + '&top=30&skip=0');
-        var d = await r.json();
-        var lista = d.data || d.value || [];
-        var auth  = lista.filter(function(n) { return (n.status||'').toLowerCase() === 'autorizado'; });
-        if (!auth.length) {
-            div.innerHTML = '<div style="padding:12px;color:var(--text3);">Nenhuma NF-e autorizada encontrada.</div>';
+        // Busca em paralelo na Nuvem Fiscal (emitente) e no Histórico Local (referenciada como transportadora)
+        const [rNuvem, rLocal] = await Promise.all([
+            fetch('api/consultar_nfes.php?cpf_cnpj=' + cnpj + '&top=20&skip=0').then(r => r.json()).catch(() => ({data:[]})),
+            fetch('api/listar_nfes_por_transp.php?transp_cnpj=' + cnpj).then(r => r.json()).catch(() => ({data:[]}))
+        ]);
+        
+        const listaNuvem = rNuvem.data || rNuvem.value || [];
+        const listaLocal = rLocal.data || [];
+        
+        const chaves = new Set();
+        const final = [];
+        
+        // 1. Prioridade Nuvem Fiscal (onde a empresa logada é a EMITENTE)
+        listaNuvem.forEach(n => {
+            const ch = (n.chave_acesso || '').replace(/\D/g,'');
+            if (ch && ch.length === 44 && !chaves.has(ch)) {
+                chaves.add(ch);
+                final.push({
+                    chave: ch,
+                    numero: n.numero || n.nNF || '?',
+                    dest: (n.destinatario && (n.destinatario.nome || n.destinatario.razao_social)) || '?',
+                    origem: 'Nuvem Fiscal'
+                });
+            }
+        });
+        
+        // 2. Histórico Local (onde a empresa foi selecionada como TRANSPORTADORA em outras emissões)
+        listaLocal.forEach(n => {
+            const ch = (n.chave || '').replace(/\D/g,'');
+            if (ch && ch.length === 44 && !chaves.has(ch)) {
+                chaves.add(ch);
+                final.push({
+                    chave: ch,
+                    numero: n.numero || '?',
+                    dest: n.dest_nome || '?',
+                    origem: 'Histórico Local'
+                });
+            }
+        });
+
+        if (!final.length) {
+            div.innerHTML = '<div style="padding:12px;color:var(--text3);text-align:center;">Nenhuma NF-e encontrada vinculada a esta transportadora.</div>';
             return;
         }
-        div.innerHTML = '<div style="font-size:11px;color:var(--text2);margin-bottom:6px;">Clique para adicionar a chave:</div>' +
-            auth.map(function(n) {
-                var chave = n.chave_acesso || '';
-                var num   = n.numero || n.nNF || '?';
-                var dest  = (n.destinatario && (n.destinatario.nome || n.destinatario.razao_social)) || '?';
-                return '<div onclick="cteAdicionarChaveNFe(\'' + chave + '\')"' +
-                    ' style="cursor:pointer;padding:6px 8px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:11px;"' +
-                    ' onmouseover="this.style.background=\'var(--bg2)\'" onmouseout="this.style.background=\'\'">' +
-                    '<strong>NF-e nº ' + num + '</strong> — ' + dest + '<br>' +
-                    '<span style="font-family:monospace;font-size:10px;color:var(--text3);">' + chave + '</span>' +
+
+        div.innerHTML = '<div style="font-size:11px;color:var(--text2);margin-bottom:8px;font-weight:600;">NF-es vinculadas (como emitente ou transportadora):</div>' +
+            '<div style="display:flex;flex-direction:column;gap:6px;">' +
+            final.map(function(n) {
+                return '<div onclick="cteAdicionarChaveNFe(\'' + n.chave + '\')"' +
+                    ' class="nfe-selectable-item"' +
+                    ' style="cursor:pointer;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:var(--bg-secondary);transition:all 0.2s;">' +
+                    '<div style="display:flex;justify-content:space-between;margin-bottom:2px;">' +
+                        '<strong>NF-e nº ' + n.numero + '</strong>' +
+                        '<span style="font-size:9px;color:var(--text3);background:var(--bg);padding:1px 4px;border-radius:4px;">' + n.origem + '</span>' +
+                    '</div>' +
+                    '<div style="color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Dest: ' + n.dest + '</div>' +
+                    '<div style="font-family:monospace;font-size:10px;color:var(--blue);margin-top:2px;">' + n.chave + '</div>' +
                     '</div>';
-            }).join('');
+            }).join('') + '</div>';
+            
     } catch(e) {
-        div.innerHTML = '<div style="padding:12px;color:var(--red);">Erro ao buscar NF-es.</div>';
+        console.error(e);
+        div.innerHTML = '<div style="padding:12px;color:var(--red);text-align:center;">Erro ao buscar NF-es vinculadas.</div>';
     }
 }
 
 function cteAdicionarChaveNFe(chave) {
     var rows = document.querySelectorAll('#cteDocumentos .cte-row-nfe input');
+    let targetInput = null;
+    
     for (var i = 0; i < rows.length; i++) {
-        if (!rows[i].value) { rows[i].value = chave; mostrarToast('Chave adicionada.', 'success'); return; }
+        if (!rows[i].value) { targetInput = rows[i]; break; }
         if (rows[i].value === chave) { mostrarToast('Chave já adicionada.', 'warning'); return; }
     }
-    cteAddNFe();
-    var last = document.querySelector('#cteDocumentos .cte-row-nfe:last-child input');
-    if (last) last.value = chave;
-    mostrarToast('Chave adicionada.', 'success');
+    
+    if (!targetInput) {
+        cteAddNFe();
+        const allRows = document.querySelectorAll('#cteDocumentos .cte-row-nfe input');
+        targetInput = allRows[allRows.length - 1];
+    }
+    
+    if (targetInput) {
+        targetInput.value = chave;
+        mostrarToast('Chave adicionada. Importando dados...', 'success');
+        cteConsultarEImportarNFe(targetInput);
+    }
 }
 
 // ============================================================
@@ -1066,27 +1295,57 @@ function cteMontarPayload() {
     var cobr = getCobrancaCTE();
     if (cobr) imp.cobr = cobr;
 
-    var payload = {
-        ambiente: 'homologacao',
-        referencia: 'CTE-' + serie + '-' + nCT + '-' + Date.now(),
-        infCte: {
-            ide: ide,
-            emit: emit,
-            rem: rem,
-            dest: dest,
-            vPrest: { vTPrest: vTPrest, vRec: vRec, comp: comp },
-            imp: imp,
-            infCTeNorm: {
-                infCarga: {
-                    vCarga:  cteGetN('cteVCarga'),
-                    proProd: cteGetV('cteProProd') || 'MERCADORIAS EM GERAL',
-                    infQ: infQ,
-                },
-                infDoc: infDoc,
-                infModal: infModal,
+    // Montar payload baseado no modelo (57 = CT-e Normal, 67 = CT-e OS)
+    var payload;
+    if (modelo === 57) {
+        // CT-e Normal
+        payload = {
+            ambiente: 'homologacao',
+            referencia: 'CTE-' + serie + '-' + nCT + '-' + Date.now(),
+            infCte: {
+                ide: ide,
+                emit: emit,
+                rem: rem,
+                dest: dest,
+                vPrest: { vTPrest: vTPrest, vRec: vRec, comp: comp },
+                imp: imp,
+                infCTeNorm: {
+                    infCarga: {
+                        vCarga:  cteGetN('cteVCarga'),
+                        proProd: cteGetV('cteProProd') || 'MERCADORIAS EM GERAL',
+                        infQ: infQ,
+                    },
+                    infDoc: infDoc,
+                    infModal: infModal,
+                }
             }
-        }
-    };
+        };
+    } else {
+        // CT-e OS (modelo 67)
+        payload = {
+            ambiente: 'homologacao',
+            referencia: 'CTE-' + serie + '-' + nCT + '-' + Date.now(),
+            infCte: {
+                ide: ide,
+                emit: emit,
+                toma: {
+                    toma: parseInt(cteGetV('cteToma')) || 3,
+                    vPrest: { vTPrest: vTPrest, vRec: vRec, comp: comp },
+                },
+                vPrest: { vTPrest: vTPrest, vRec: vRec, comp: comp },
+                imp: imp,
+                inf_cte_norm: {
+                    infCarga: {
+                        vCarga:  cteGetN('cteVCarga'),
+                        proProd: cteGetV('cteProProd') || 'MERCADORIAS EM GERAL',
+                        infQ: infQ,
+                    },
+                    infDoc: infDoc,
+                    infModal: infModal,
+                }
+            }
+        };
+    }
 
     return payload;
 }
@@ -1148,6 +1407,92 @@ async function transmitirCte() {
 // ============================================================
 // CONTADORES DE CARACTERES
 // ============================================================
+
+// TESTAR CT-e (sem enviar para SEFAZ)
+// ============================================================
+
+async function testarCte() {
+    var payload;
+    try { payload = cteMontarPayload(); }
+    catch(e) { cteAlerta('error', e.message); return; }
+
+    var btn = document.getElementById('btnTestarCte');
+    btn.disabled = true; btn.textContent = '⏳ Validando...';
+
+    try {
+        // Enviar para API de teste (valida payload mas não transmite para SEFAZ)
+        var r = await fetch('api/testar_cte.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': await getCsrfToken() },
+            body: JSON.stringify(payload)
+        });
+        var d = await r.json();
+
+        if (r.ok && d.id) {
+            // Exibir o payload em um modal para o usuário copiar
+            var jsonStr = JSON.stringify(payload, null, 2);
+            
+            // Criar modal de visualização
+            var modalHtml = `
+                <div id="modalTesteCte" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:20000; justify-content:center; align-items:center;">
+                    <div style="background:var(--bg); border-radius:12px; width:90%; max-width:900px; max-height:90vh; display:flex; flex-direction:column;">
+                        <div style="padding:20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <h3 style="margin:0; color:var(--text);">🧪 CT-e de Teste</h3>
+                                <p style="margin:4px 0 0 0; color:var(--text-light); font-size:13px;">Payload validado (não enviado para SEFAZ)</p>
+                            </div>
+                            <button class="btn btn-ghost" onclick="document.getElementById('modalTesteCte').style.display='none'">✕ Fechar</button>
+                        </div>
+                        <div style="padding:16px 20px; background:var(--bg-secondary); border-bottom:1px solid var(--border);">
+                            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                                <div style="background:var(--bg); padding:8px 16px; border-radius:8px; font-size:13px;">
+                                    <strong>Modelo:</strong> ${payload.infCte.ide.mod}
+                                </div>
+                                <div style="background:var(--bg); padding:8px 16px; border-radius:8px; font-size:13px;">
+                                    <strong>Série/Nº:</strong> ${payload.infCte.ide.serie}/${payload.infCte.ide.nCT}
+                                </div>
+                                <div style="background:var(--bg); padding:8px 16px; border-radius:8px; font-size:13px;">
+                                    <strong>Tipo Serviço:</strong> ${payload.infCte.ide.tpServ}
+                                </div>
+                                <div style="background:var(--bg); padding:8px 16px; border-radius:8px; font-size:13px;">
+                                    <strong>Valor:</strong> R$ ${payload.infCte.vPrest.vTPrest.toFixed(2)}
+                                </div>
+                                <div style="background:var(--bg); padding:8px 16px; border-radius:8px; font-size:13px; color:var(--green);">
+                                    <strong>Chave:</strong> ${d.chave_de_acesso || 'N/A'}
+                                </div>
+                            </div>
+                        </div>
+                        <div style="flex:1; overflow:auto; padding:20px;">
+                            <pre style="margin:0; padding:16px; background:#1e1e1e; color:#d4d4d4; border-radius:8px; font-size:12px; overflow:auto; max-height:400px;">${jsonStr.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+                        </div>
+                        <div style="padding:16px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:12px;">
+                            <button class="btn btn-ghost" onclick="document.getElementById('modalTesteCte').style.display='none'">Fechar</button>
+                            <button class="btn btn-primary" onclick="navigator.clipboard.writeText(JSON.stringify(payload, null, 2)); this.textContent='✓ Copiado!'; setTimeout(()=>this.textContent='📋 Copiar JSON',2000);">📋 Copiar JSON</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remover modal anterior se existir
+            var existingModal = document.getElementById('modalTesteCte');
+            if (existingModal) existingModal.remove();
+            
+            // Adicionar novo modal
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            document.getElementById('modalTesteCte').style.display = 'flex';
+            
+            cteAlerta('success', 'CT-e de teste validado! Payload OK. Copie o JSON ou visualize os dados.');
+        } else {
+            var msg = (d.mensagens && d.mensagens[0] && d.mensagens[0].descricao)
+                || d.error || d.message || JSON.stringify(d).slice(0,250);
+            cteAlerta('error', 'Erro na validação: ' + msg);
+        }
+    } catch(e) {
+        cteAlerta('error', 'Erro de comunicação: ' + e.message);
+    } finally {
+        btn.disabled = false; btn.textContent = '🧪 Testar (sem enviar)';
+    }
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     var ta = document.getElementById('cancelCteJustificativa');

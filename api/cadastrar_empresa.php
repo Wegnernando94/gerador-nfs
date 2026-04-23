@@ -61,6 +61,9 @@ if ($requestBody === null) {
 $tipoEmpresa = $requestBody['tipo_empresa'] ?? 'cliente';
 salvarTipoEmpresaLocal($requestBody['cpf_cnpj'], $tipoEmpresa);
 
+// Remove a propriedade para não causar erro de validação na API da Nuvem Fiscal
+unset($requestBody['tipo_empresa']);
+
 function salvarTipoEmpresaLocal(string $cnpj, string $tipo): void {
     $arquivo = __DIR__ . '/../data/tipos_empresa.json';
     $tipos = [];
