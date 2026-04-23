@@ -38,6 +38,10 @@ try {
         if ($cnpj === '') continue;
         $r = nuvemFiscalRequest('GET', '/empresas/' . $cnpj);
         if ($r['status'] === 200 && !empty($r['body']['cpf_cnpj'])) {
+            // Adicionar tipo de empresa
+            $tipoArquivo = __DIR__ . '/../data/tipos_empresa.json';
+            $tipos = file_exists($tipoArquivo) ? json_decode(file_get_contents($tipoArquivo), true) ?? [] : [];
+            $r['body']['tipo_empresa'] = $tipos[$cnpj] ?? 'cliente';
             $empresas[] = $r['body'];
         }
     }

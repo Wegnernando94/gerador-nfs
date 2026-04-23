@@ -4,7 +4,7 @@ let _csrfToken = null;
 async function getCsrfToken() {
     if (_csrfToken) return _csrfToken;
     try {
-        const r = await fetch('api/listar_empresas.php', { method: 'HEAD' });
+        const r = await fetch('api/listar_empresas.php', { method: 'GET' });
         _csrfToken = r.headers.get('X-CSRF-Token') || '';
     } catch { _csrfToken = ''; }
     return _csrfToken;
@@ -39,6 +39,7 @@ window.onload = () => {
     const dh = document.getElementById('dhEmi');
     if(dh) dh.value = new Date().toISOString().slice(0,16);
     inicializarCampoChave();
+    iniciarValidacaoNNF();
 };
 
 function inicializarCampoChave() {
@@ -127,6 +128,80 @@ function limparPainelRef() {
 
 let _notaRefData = null;
 
+function toggleCobranca() {
+    const div = document.getElementById('cobrancaConteudo');
+    const icon = document.getElementById('cobrancaToggleIcon');
+    const open = div.style.display === '';
+    div.style.display = open ? 'none' : '';
+    icon.textContent = open ? '▼' : '▲';
+}
+
+let _duplicatas = [];
+
+function addDuplicata() {
+    const container = document.getElementById('listaDuplicatas');
+    const index = _duplicatas.length;
+    
+    const div = document.createElement('div');
+    div.className = 'duplicata-item';
+    div.style.cssText = 'border: 1px solid var(--border); border-radius: 4px; padding: 12px; margin-bottom: 8px; background: var(--bg1);';
+    
+    div.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <span style="font-weight: 600; color: var(--text1);">Parcela ${index + 1}</span>
+            <button class="btn btn-danger" onclick="removerDuplicata(${index})" style="font-size: 11px; padding: 3px 8px;">Remover</button>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+            <div class="field">
+                <label>Número da Duplicata</label>
+                <input type="text" id="nDup_${index}" placeholder="001" style="width: 100%;">
+            </div>
+            <div class="field">
+                <label>Data de Vencimento</label>
+                <input type="date" id="dVenc_${index}" style="width: 100%;">
+            </div>
+            <div class="field">
+                <label>Valor (R$)</label>
+                <input type="number" id="vDup_${index}" step="0.01" placeholder="0,00" style="width: 100%;" oninput="atualizarValorLiquido()">
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(div);
+    _duplicatas.push({
+        nDup: '',
+        dVenc: '',
+        vDup: 0
+    });
+}
+
+function removerDuplicata(index) {
+    _duplicatas.splice(index, 1);
+    atualizarListaDuplicatas();
+    atualizarValorLiquido();
+}
+
+function atualizarListaDuplicatas() {
+    const container = document.getElementById('listaDuplicatas');
+    container.innerHTML = '';
+    _duplicatas.forEach((dup, index) => {
+        addDuplicata();
+        // Restaurar valores
+        setTimeout(() => {
+            document.getElementById(`nDup_${index}`).value = dup.nDup;
+            document.getElementById(`dVenc_${index}`).value = dup.dVenc;
+            document.getElementById(`vDup_${index}`).value = dup.vDup;
+        }, 10);
+    });
+}
+
+function atualizarValorLiquido() {
+    const vOrig = parseFloat(document.getElementById('vOrig').value) || 0;
+    const vDesc = parseFloat(document.getElementById('vDesc').value) || 0;
+    const vLiq = vOrig - vDesc;
+    document.getElementById('vLiq').value = vLiq.toFixed(2);
+}
+
 async function consultarNotaRef() {
     const chave = getV('refNFe').replace(/\D/g, '');
     const erro  = document.getElementById('erroRef');
@@ -196,6 +271,17 @@ async function confirmarDevolucao() {
 
 async function transmitirDevolucao(notaOriginal) {
     const btn = document.getElementById('btnRealizarDevolucao');
+
+    const nNFDev   = parseInt(document.getElementById('nNF')?.value) + 1 || '?';
+    const serieDev = parseInt(document.getElementById('serie')?.value) || 1;
+    const confirmado = confirm(
+        `Confirma a transmissão da NF-e de devolução?\n\n` +
+        `Série: ${serieDev}\n` +
+        `Número: ${nNFDev}\n\n` +
+        `Verifique se estes dados estão corretos antes de continuar.`
+    );
+    if (!confirmado) return;
+
     btn.innerText = 'Transmitindo...';
     btn.disabled  = true;
 
@@ -338,7 +424,7 @@ async function transmitirDevolucao(notaOriginal) {
                         vPIS: vPisTot, vCOFINS: vCofinsTot, vOutro: 0, vNF: vTot
                     }
                 },
-                transp: { modFrete: 9 },
+                transp: (typeof getTranspNFe === 'function') ? getTranspNFe() : { modFrete: 9 },
                 pag: { detPag: [{ tPag: '90', vPag: 0 }] }
             }
         };
@@ -957,6 +1043,18 @@ async function transmitirParaSefaz() {
         return;
     }
 
+    const confirmado = confirm(
+        `Confirma a transmissão da NF-e?\n\n` +
+        `Série: ${serieNum}\n` +
+        `Número: ${nNFNum}\n\n` +
+        `Verifique se estes dados estão corretos antes de continuar.`
+    );
+    if (!confirmado) {
+        btn.innerText = "TRANSMITIR PARA SEFAZ";
+        btn.disabled = false;
+        return;
+    }
+
     btn.innerText = "⏳ TRANSMITINDO...";
     btn.disabled = true;
 
@@ -994,7 +1092,7 @@ async function transmitirParaSefaz() {
                 dest: { CNPJ: clean(getV('cnpjDest')), xNome: getV('xNomeDest'), indIEDest: indIEDest, enderDest: { xLgr: getV('xLgrDest'), nro: getV('nroDest'), xBairro: getV('xBairroDest'), cMun: getV('cMunDest'), xMun: getV('xMunDest'), UF: getV('ufDest'), CEP: getV('cepDest') } },
                 det: [],
                 total: { ICMSTot: { vBC: 0, vICMS: 0, vICMSDeson: 0, vFCP: 0, vBCST: 0, vST: 0, vFCPST: 0, vFCPSTRet: 0, vProd: 0, vFrete: 0, vSeg: 0, vDesc: 0, vII: 0, vIPI: 0, vIPIDevol: 0, vPIS: 0, vCOFINS: 0, vOutro: 0, vNF: 0 } },
-                transp: { modFrete: 9 },
+                transp: (typeof getTranspNFe === 'function') ? getTranspNFe() : { modFrete: 9 },
                 pag: { detPag: [{ tPag: "01", vPag: 0 }] }
             }
         };
@@ -1105,6 +1203,12 @@ async function transmitirParaSefaz() {
         payload.infNFe.total.ICMSTot.vCOFINS    = vCofinsTot;
         payload.infNFe.total.ICMSTot.vNF        = vNFN;
         payload.infNFe.pag.detPag[0].vPag       = vNFN;
+
+        // Adicionar cobrança/duplicatas se informadas
+        const cobranca = getCobrancaNFe();
+        if (cobranca) {
+            payload.infNFe.cobr = cobranca;
+        }
 
         const resp = await fetch('api/transmitir.php', { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': await getCsrfToken() } });
         const res = await resp.json();
@@ -1297,9 +1401,11 @@ async function buscarNotas(skip) {
                         <button class="btn btn-primary" style="padding:4px 10px;font-size:0.8em;" onclick="verDanfeConsulta('${n.id}','${n.serie}/${n.numero}')">Ver PDF</button>
                         <button class="btn btn-success" style="padding:4px 10px;font-size:0.8em;" onclick="baixarDanfeConsulta('${n.id}','${n.serie}/${n.numero}')">Baixar PDF</button>
                         <button class="btn btn-warning" style="padding:4px 10px;font-size:0.8em;" onclick="baixarXmlConsulta('${n.id}','${n.serie}/${n.numero}')">XML</button>
+                        <button class="btn btn-danger" style="padding:4px 10px;font-size:0.8em;" onclick="abrirModalCancelamento('${n.id}','${n.serie}/${n.numero}')">🗑️ Cancelar</button>
                         ` : ''}
                         ${st === 'rejeitado' ? `<button class="btn-reenviar" onclick="abrirReenvioNFe('${n.id}','${n.chave || ''}')">↩️ Reenviar</button>` : ''}
-                        ${!podeImprimir && st !== 'rejeitado' ? '<span style="color:#666;font-size:0.8em;">-</span>' : ''}
+                        ${st === 'cancelado' ? `<a class="btn btn-warning" style="padding:4px 10px;font-size:0.8em;text-decoration:none;" href="api/download_xml_cancelamento.php?id=${n.id}" download>📄 XML Cancelamento</a>` : ''}
+                        ${!podeImprimir && st !== 'rejeitado' && st !== 'cancelado' ? '<span style="color:#666;font-size:0.8em;">-</span>' : ''}
                     </td>
                 </tr>`;
             }).join('');
@@ -1504,8 +1610,10 @@ async function carregarDropdownsEmpresas() {
         }
         let opt = res.data.map(e => {
             const end = e.endereco || {};
+            const tipo = e.tipo_empresa || 'cliente';
             return `<option value="${e.cpf_cnpj}"
                 data-nome="${e.nome_razao_social}"
+                data-tipo="${tipo}"
                 data-uf="${end.uf || ''}"
                 data-cmun="${end.codigo_municipio || ''}"
                 data-xmun="${end.cidade || ''}"
@@ -1517,10 +1625,31 @@ async function carregarDropdownsEmpresas() {
             >${e.nome_razao_social}</option>`;
         }).join('');
         console.log('Opções criadas:', opt);
+        
+        // Filtrar transportadoras para dropdown de transporte
+        const transportadoras = res.data.filter(e => (e.tipo_empresa || 'cliente') === 'transportadora');
+        let optTransp = transportadoras.map(e => {
+            const end = e.endereco || {};
+            return `<option value="${e.cpf_cnpj}"
+                data-nome="${e.nome_razao_social}"
+                data-tipo="transportadora"
+                data-uf="${end.uf || ''}"
+                data-cmun="${end.codigo_municipio || ''}"
+                data-xmun="${end.cidade || ''}"
+                data-xlgr="${end.logradouro || ''}"
+                data-nro="${end.numero || 'SN'}"
+                data-xbairro="${end.bairro || ''}"
+                data-cep="${(end.cep || '').replace(/\D/g,'')}"
+                data-ie="${e.inscricao_estadual || ''}"
+            >${e.nome_razao_social}</option>`;
+        }).join('');
+        
         document.getElementById('dropEmit').innerHTML = '<option value="">Selecione...</option>' + opt;
         document.getElementById('dropDest').innerHTML = '<option value="">Selecione...</option>' + opt;
+        document.getElementById('dropTransp').innerHTML = '<option value="">Selecione transportadora...</option>' + optTransp;
         initCombobox('cbEmit', 'dropEmit');
         initCombobox('cbDest', 'dropDest');
+        initCombobox('cbTransp', 'dropTransp');
     } catch(e) { console.error("Erro ao carregar empresas", e); }
 }
 
@@ -1690,15 +1819,61 @@ async function buscarProximoNNF(cnpj) {
 
 async function validarNNFDisponivel(cnpj, nNF, serie) {
     try {
-        const params = new URLSearchParams({ top: 5, skip: 0, cpf_cnpj: cnpj });
+        const params = new URLSearchParams({ top: 1, skip: 0, cpf_cnpj: cnpj, numero: nNF, serie: serie });
         const resp = await fetch('api/consultar_nfes.php?' + params);
         const res  = await resp.json();
         const notas = res.data || [];
-        const duplicada = notas.find(n => parseInt(n.numero) === nNF && parseInt(n.serie) === serie);
-        return duplicada || null;
+        return notas.length > 0 ? notas[0] : null;
     } catch(e) {
         return null;
     }
+}
+
+// Validação em tempo real dos campos nNF e serie
+let _nnfDebounce = null;
+function iniciarValidacaoNNF() {
+    const nNFField   = document.getElementById('nNF');
+    const serieField = document.getElementById('serie');
+    if (!nNFField || !serieField) return;
+
+    let aviso = document.getElementById('nnfAviso');
+    if (!aviso) {
+        aviso = document.createElement('div');
+        aviso.id = 'nnfAviso';
+        aviso.style.cssText = 'font-size:12px;margin-top:4px;padding:4px 8px;border-radius:4px;display:none;';
+        nNFField.parentElement.appendChild(aviso);
+    }
+
+    async function checar() {
+        const cnpj  = document.getElementById('cnpjEmit')?.value.replace(/\D/g, '');
+        const nNF   = parseInt(nNFField.value);
+        const serie = parseInt(serieField.value);
+        if (!cnpj || cnpj.length !== 14 || !nNF || !serie) {
+            aviso.style.display = 'none';
+            return;
+        }
+        aviso.style.cssText += ';display:block;background:#fffbe6;color:#856404;border:1px solid #ffc107;';
+        aviso.textContent = `Verificando série ${serie} / nº ${nNF}...`;
+        const dup = await validarNNFDisponivel(cnpj, nNF, serie);
+        if (dup) {
+            aviso.style.cssText = 'font-size:12px;margin-top:4px;padding:4px 8px;border-radius:4px;display:block;background:#f8d7da;color:#842029;border:1px solid #f5c2c7;';
+            aviso.textContent = `⚠️ Série ${serie} / nº ${nNF} já foi emitido (status: ${dup.status}). Escolha outro número.`;
+            nNFField.style.borderColor = '#dc3545';
+        } else {
+            aviso.style.cssText = 'font-size:12px;margin-top:4px;padding:4px 8px;border-radius:4px;display:block;background:#d1e7dd;color:#0a3622;border:1px solid #a3cfbb;';
+            aviso.textContent = `✓ Série ${serie} / nº ${nNF} disponível.`;
+            nNFField.style.borderColor = '';
+        }
+    }
+
+    function agendarChecagem() {
+        clearTimeout(_nnfDebounce);
+        _nnfDebounce = setTimeout(checar, 600);
+    }
+
+    nNFField.addEventListener('change', agendarChecagem);
+    nNFField.addEventListener('input',  agendarChecagem);
+    serieField.addEventListener('change', agendarChecagem);
 }
 
 // ==========================================
@@ -1770,6 +1945,10 @@ function empAlternarTipo() {
     document.getElementById('empCpfCnpj').placeholder = isPF ? '000.000.000-00' : '00.000.000/0000-00';
     document.getElementById('empCpfCnpj').maxLength    = isPF ? 14 : 18;
     document.getElementById('empBtnBuscar').style.display = isPF ? 'none' : '';
+}
+
+function empGetTipoEmpresa() {
+    return document.getElementById('empTipoEmpresaTransportadora').checked ? 'transportadora' : 'cliente';
 }
 
 // --- Máscaras ---
@@ -1883,6 +2062,7 @@ async function empSalvar() {
         nome_fantasia:      document.getElementById('empNomeFantasia').value.trim(),
         email:              document.getElementById('empEmail').value.trim(),
         fone:               document.getElementById('empFone').value.replace(/\D/g, ''),
+        tipo_empresa:       empGetTipoEmpresa(),
         inscricao_estadual: document.getElementById('empIE').value.trim(),
         inscricao_municipal:document.getElementById('empIM').value.trim(),
         endereco: {
@@ -2598,7 +2778,7 @@ async function rnvReenviar() {
                 }
             },
             transp: { modFrete: 9 },
-            pag: { detPag: [{ tPag: '01', vPag: vNF }] }
+            pag: { detPag: [{ tPag: '01', vPag: vNF }] }  // reenvio não usa dados de transporte do form
         }
     };
 
@@ -2770,3 +2950,124 @@ document.getElementById('modalReenvioNFe').addEventListener('click', function(e)
         }
     });
 })();
+
+// ============================================
+// CANCELAMENTO DE NF-e / NFC-e
+// ============================================
+let _nfParaCancelar = null;
+
+function abrirModalCancelamento(idNota, serieNumero) {
+    _nfParaCancelar = idNota;
+    document.getElementById('modalCancelamento').style.display = 'flex';
+    document.getElementById('cancelNfId').textContent = idNota;
+    document.getElementById('cancelNfSerie').textContent = serieNumero;
+    document.getElementById('cancelJustificativa').value = '';
+    atualizarContadorCancelamento();
+}
+
+function fecharModalCancelamento() {
+    document.getElementById('modalCancelamento').style.display = 'none';
+    _nfParaCancelar = null;
+}
+
+function atualizarContadorCancelamento() {
+    const textarea = document.getElementById('cancelJustificativa');
+    const counter = document.getElementById('cancelContador');
+    const len = textarea.value.length;
+    counter.textContent = len + '/255';
+
+    // Muda cor conforme comprimento
+    if (len < 15) {
+        counter.style.color = '#f44336'; // Vermelho
+    } else if (len >= 15 && len <= 255) {
+        counter.style.color = '#4caf50'; // Verde
+    } else {
+        counter.style.color = '#f44336'; // Vermelho se passar de 255
+    }
+}
+
+async function executarCancelamento() {
+    if (!_nfParaCancelar) return;
+
+    const justificativa = document.getElementById('cancelJustificativa').value.trim();
+
+    // Validações
+    if (!justificativa) {
+        alert('⚠️ Justificativa é obrigatória');
+        return;
+    }
+
+    if (justificativa.length < 15) {
+        alert('⚠️ Justificativa deve ter no mínimo 15 caracteres');
+        return;
+    }
+
+    if (justificativa.length > 255) {
+        alert('⚠️ Justificativa não pode exceder 255 caracteres');
+        return;
+    }
+
+    // Confirmação final
+    const confirma = confirm(
+        `Tem certeza que deseja cancelar a nota?\n\nSérie/Número: ${document.getElementById('cancelNfSerie').textContent}\n\nEsta ação NÃO pode ser desfeita.`
+    );
+
+    if (!confirma) return;
+
+    // Desabilita botão e mostra loading
+    const btnConfirmar = document.getElementById('btnConfirmarCancelamento');
+    const btnCancelar = document.getElementById('btnCancelarCancelamento');
+    btnConfirmar.disabled = true;
+    btnCancelar.disabled = true;
+    btnConfirmar.textContent = '⏳ Processando...';
+
+    try {
+        const response = await securePost('api/cancelar_nfe.php', {
+            id: _nfParaCancelar,
+            justificativa: justificativa
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // Sucesso!
+            alert('✅ Nota fiscal cancelada com sucesso!');
+            fecharModalCancelamento();
+            // Recarregar a lista de notas
+            buscarNotas(_skipAtual);
+        } else {
+            // Erro
+            let mensagem = result.error || 'Erro desconhecido';
+
+            if (response.status === 400) {
+                mensagem = '⚠️ Validação falhou: ' + mensagem;
+            } else if (response.status === 401) {
+                mensagem = '🔒 Sessão expirada. Faça login novamente.';
+            } else if (response.status === 404) {
+                mensagem = '❌ Nota não encontrada.';
+            } else if (response.status === 422) {
+                mensagem = '❌ SEFAZ rejeitou o cancelamento: ' + mensagem;
+            } else if (response.status === 500) {
+                mensagem = '❌ Erro no servidor. Tente novamente.';
+            }
+
+            alert(mensagem);
+        }
+    } catch (error) {
+        console.error('Erro ao cancelar nota:', error);
+        alert('❌ Erro ao comunicar com o servidor: ' + error.message);
+    } finally {
+        // Reativa botões
+        btnConfirmar.disabled = false;
+        btnCancelar.disabled = false;
+        btnConfirmar.textContent = 'Confirmar Cancelamento';
+    }
+}
+
+// Event listener para contador de caracteres
+document.addEventListener('DOMContentLoaded', () => {
+    const textarea = document.getElementById('cancelJustificativa');
+    if (textarea) {
+        textarea.addEventListener('input', atualizarContadorCancelamento);
+    }
+});

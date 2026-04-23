@@ -1339,3 +1339,84 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
 /* Highlight field with error */
 .rnv-field-error input,
 .rnv-field-error select { border-color: var(--red) !important; box-shadow: 0 0 0 2px var(--red-dim); }
+
+/* ====================================================
+   NAVEGAÇÃO NF-e / CT-e (topbar nav)
+   ==================================================== */
+.topbar-nav {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin: 0 16px;
+}
+.nav-tab {
+  padding: 6px 18px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: var(--transition);
+}
+.nav-tab:hover  { background: var(--bg2); color: var(--text1); }
+.nav-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* ====================================================
+   CT-e: tabela e ações
+   ==================================================== */
+.btn-cte-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 0.75em;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text1);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: var(--transition);
+}
+.btn-cte-action:hover { background: var(--border); }
+.btn-cte-action.danger { background: var(--red-dim); color: var(--red); border-color: var(--red); }
+.btn-cte-action.danger:hover { background: var(--red); color: #fff; }
+.btn-cte-action.success { background: var(--green-dim,#d4edda); color: var(--green); border-color: var(--green); }
+
+/* CT-e componentes / quantidades / docs inline */
+.cte-row {
+  display: grid;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.cte-row-comp { grid-template-columns: 1fr 140px 28px; }
+.cte-row-qtd  { grid-template-columns: 120px 1fr 100px 28px; }
+.cte-row-nfe  { grid-template-columns: 1fr 28px; }
+.cte-row-nf   { grid-template-columns: 100px 1fr 28px; }
+.cte-row-outro{ grid-template-columns: 100px 1fr 28px; }
+.cte-row input, .cte-row select {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text1);
+  font-family: inherit;
+  font-size: 12px;
+}
+.cte-row .btn-del {
+  width: 28px; height: 28px;
+  border: 1px solid var(--red);
+  background: var(--red-dim);
+  color: var(--red);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.cte-row .btn-del:hover { background: var(--red); color: #fff; }

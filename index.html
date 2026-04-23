@@ -20,11 +20,15 @@
         </div>
         <span class="badge-env">SANDBOX</span>
     </div>
+    <nav class="topbar-nav">
+        <button class="nav-tab active" id="navNfe" onclick="irParaNfe()">📄 NF-e</button>
+        <button class="nav-tab" id="navCte" onclick="irParaCte()">🚛 CT-e</button>
+    </nav>
     <div class="topbar-actions">
         <button class="btn btn-primary" onclick="abrirCadastroEmpresa()" title="Cadastrar nova empresa na Nuvem Fiscal">
             🏢 + Empresa
         </button>
-        <button class="btn btn-ghost" onclick="abrirConsulta()">
+        <button class="btn btn-ghost" id="btnConsultarNotas" onclick="abrirConsulta()">
             📋 Consultar Notas
         </button>
         <button class="btn btn-ghost btn-icon" title="Reiniciar formulário" onclick="location.reload()">↺</button>
@@ -173,6 +177,39 @@
     </div>
 
 
+    <!-- Transporte (opcional) -->
+    <div class="card" id="cardTransporte" style="margin-bottom:16px;">
+        <div class="card-header" style="cursor:pointer;" onclick="toggleTransporte()">
+            <div class="card-header-icon icon-blue"><span>🚛</span></div>
+            <div class="card-header-text">
+                <div class="card-title">Transporte <span style="font-size:11px; color:var(--text3); font-weight:400;">(opcional)</span></div>
+                <div class="card-desc">Modalidade de frete e transportadora</div>
+            </div>
+            <span id="transpToggleIcon" style="font-size:18px; color:var(--text2);">▼</span>
+        </div>
+        <div id="transpConteudo" style="display:none; padding-top:4px;">
+            <div class="grid-2" style="margin-bottom:10px;">
+                <div class="field">
+                    <label>Modal de Frete <span class="tip" data-tip="Define quem paga o frete. CIF: frete por conta do remetente. FOB: por conta do destinatário. Terceiro: outra empresa transportadora.">?</span></label>
+                    <select id="modFrete" onchange="toggleTransportadora()">
+                        <option value="9">9 – Sem frete</option>
+                        <option value="0">0 – CIF (por conta do emitente)</option>
+                        <option value="1">1 – FOB (por conta do destinatário)</option>
+                        <option value="2">2 – Terceiro</option>
+                        <option value="3">3 – Próprio por conta do remetente</option>
+                        <option value="4">4 – Próprio por conta do destinatário</option>
+                    </select>
+                </div>
+                <div class="field" id="campoTransportadoraCNPJ" style="display:none;">
+                    <label>Transportadora</label>
+                    <input type="text" id="cbTransp" placeholder="Buscar transportadora..." autocomplete="off">
+                    <div id="cbTranspList" class="combobox-list"></div>
+                    <select id="dropTransp" style="display:none;"></select>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="card" style="margin-bottom:16px;">
         <div class="card-header">
             <div class="card-header-icon icon-orange"><span>🧾</span></div>
@@ -282,6 +319,48 @@
         </div>
     </div>
 
+
+    <!-- Cobrança / Duplicatas (opcional) -->
+    <div class="card" id="cardCobranca" style="margin-bottom:16px;">
+        <div class="card-header" style="cursor:pointer;" onclick="toggleCobranca()">
+            <div class="card-header-icon icon-green"><span>💰</span></div>
+            <div class="card-header-text">
+                <div class="card-title">Cobrança <span style="font-size:11px; color:var(--text3); font-weight:400;">(opcional)</span></div>
+                <div class="card-desc">Fatura e parcelas da nota</div>
+            </div>
+            <span id="cobrancaToggleIcon" style="font-size:18px; color:var(--text2);">▼</span>
+        </div>
+        <div id="cobrancaConteudo" style="display:none; padding-top:4px;">
+            <div class="grid-3" style="margin-bottom:10px;">
+                <div class="field">
+                    <label>Número da Fatura</label>
+                    <input type="text" id="nFat" placeholder="Número da fatura">
+                </div>
+                <div class="field">
+                    <label>Valor Original (R$)</label>
+                    <input type="number" id="vOrig" step="0.01" placeholder="0,00" oninput="recalc()">
+                </div>
+                <div class="field">
+                    <label>Valor do Desconto (R$)</label>
+                    <input type="number" id="vDesc" step="0.01" placeholder="0,00" oninput="recalc()">
+                </div>
+            </div>
+            <div class="field" style="margin-bottom:10px;">
+                <label>Valor Líquido (R$)</label>
+                <input type="number" id="vLiq" step="0.01" placeholder="0,00" readonly style="background-color: var(--bg2);">
+            </div>
+            
+            <div style="border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                    <label style="font-weight:600; color:var(--text1);">Duplicatas / Parcelas</label>
+                    <button class="btn btn-success" onclick="addDuplicata()" style="font-size:11px; padding:5px 12px;">
+                        + Adicionar Parcela
+                    </button>
+                </div>
+                <div id="listaDuplicatas"></div>
+            </div>
+        </div>
+    </div>
 
     <div class="card" style="margin-bottom:80px;">
         <div class="card-header">
@@ -516,6 +595,19 @@
                             <label class="tipo-pessoa-opt">
                                 <input type="radio" name="empTipoPessoa" id="empTipoPF" value="F" onchange="empAlternarTipo()">
                                 👤 Física (CPF)
+                            </label>
+                        </div>
+                    </div>
+                    <div class="field" style="margin:0;">
+                        <label>Tipo de Empresa</label>
+                        <div class="tipo-pessoa-group">
+                            <label class="tipo-pessoa-opt">
+                                <input type="radio" name="empTipoEmpresa" id="empTipoEmpresaCliente" value="cliente" checked>
+                                🧾 Cliente
+                            </label>
+                            <label class="tipo-pessoa-opt">
+                                <input type="radio" name="empTipoEmpresa" id="empTipoEmpresaTransportadora" value="transportadora">
+                                🚚 Transportadora
                             </label>
                         </div>
                     </div>
@@ -886,6 +978,762 @@
   </div>
 </div>
 
+<!-- MODAL DE CANCELAMENTO DE NF-e -->
+<div id="modalCancelamento" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; justify-content:center; align-items:center;">
+  <div class="modal-box" style="width:500px; max-height:90vh; overflow-y:auto;">
+
+    <!-- Header -->
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">🗑️ Cancelar Nota Fiscal</div>
+        <div style="font-size:12px; color:var(--text2); margin-top:3px;">
+          Cancelamento de NF-e / NFC-e
+        </div>
+      </div>
+      <button class="btn btn-ghost" id="btnCancelarCancelamento" onclick="fecharModalCancelamento()">✕ Fechar</button>
+    </div>
+
+    <!-- Alert -->
+    <div class="emp-alert warning" style="margin:16px 16px 0 16px;">
+      <span>⚠️</span>
+      <span>Este cancelamento será enviado para a SEFAZ e não poderá ser desfeito.</span>
+    </div>
+
+    <!-- Conteúdo -->
+    <div style="padding:16px;">
+
+      <!-- Identificação da Nota -->
+      <div class="emp-section">
+        <div class="emp-section-title">📋 Identificação da Nota</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label style="font-size:0.9em; color:var(--text2);">ID da Nota</label>
+            <div id="cancelNfId" style="font-family:monospace; font-weight:bold; padding:8px; background:var(--bg2); border-radius:4px; word-break:break-all;">-</div>
+          </div>
+          <div>
+            <label style="font-size:0.9em; color:var(--text2);">Série / Número</label>
+            <div id="cancelNfSerie" style="font-family:monospace; font-weight:bold; padding:8px; background:var(--bg2); border-radius:4px;">-</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Justificativa -->
+      <div class="emp-section">
+        <div class="emp-section-title">📝 Justificativa (obrigatória)</div>
+        <div class="field" style="margin:0;">
+          <label style="font-size:0.85em;">Motivo do cancelamento <span style="color:var(--red); font-weight:bold;">*</span></label>
+          <textarea
+            id="cancelJustificativa"
+            placeholder="Digite a justificativa com no mínimo 15 caracteres..."
+            maxlength="255"
+            style="width:100%; min-height:100px; padding:10px; border:1px solid var(--border); border-radius:4px; font-family:Arial,sans-serif; font-size:0.9em; resize:vertical;">
+          </textarea>
+          <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:0.85em;">
+            <span id="cancelContador" style="color:#f44336; font-weight:bold;">0/255</span>
+            <span style="color:var(--text3);">Mínimo: 15 caracteres</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Botões -->
+    <div style="display:flex; gap:10px; justify-content:flex-end; padding:16px; border-top:1px solid var(--border);">
+      <button
+        class="btn btn-ghost"
+        id="btnCancelarCancelamento"
+        onclick="fecharModalCancelamento()"
+        style="padding:10px 20px;">
+        ✕ Cancelar
+      </button>
+      <button
+        class="btn btn-danger"
+        id="btnConfirmarCancelamento"
+        onclick="executarCancelamento()"
+        style="padding:10px 20px; font-weight:bold;">
+        🗑️ Confirmar Cancelamento
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ========================================================
+     PÁGINA CT-e (oculta por padrão, alternada pelo nav)
+     ======================================================== -->
+<div id="paginaCte" style="display:none;">
+
+    <!-- Barra de ações CT-e -->
+    <div class="action-bar" style="position:static; border-radius:var(--radius); margin:0 0 16px 0; padding:12px 20px;">
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <span style="font-weight:600; font-size:14px; color:var(--text1);">🚛 CT-e — Conhecimento de Transporte Eletrônico</span>
+            <span class="badge-env">SANDBOX</span>
+        </div>
+        <div class="action-bar-buttons">
+            <button class="btn btn-ghost" id="btnStatusSefazCte" onclick="verificarStatusSefazCte()">
+                📡 Status SEFAZ
+            </button>
+            <button class="btn btn-success btn-lg" onclick="abrirEmissaoCte()">
+                + Emitir CT-e
+            </button>
+        </div>
+    </div>
+
+    <!-- Filtros CT-e -->
+    <div class="card" style="margin-bottom:16px;">
+        <div class="filtros-consulta">
+            <div class="field" style="flex:2; min-width:200px;">
+                <label>Empresa Transportadora (Emitente)</label>
+                <div class="combobox-wrap">
+                    <input type="text" id="cbFiltroCte" class="combobox-input" placeholder="Buscar empresa por nome ou CNPJ..." autocomplete="off">
+                    <div id="cbFiltroCteList" class="combobox-list"></div>
+                </div>
+                <select id="filtroEmpresaCte" style="display:none;" onchange="buscarCtes(0)">
+                    <option value="">Selecione a transportadora...</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Status</label>
+                <select id="filtroStatusCte" onchange="buscarCtes(0)" style="min-width:130px;">
+                    <option value="">Todos</option>
+                    <option value="autorizado" selected>✅ Autorizado</option>
+                    <option value="rejeitado">❌ Rejeitado</option>
+                    <option value="pendente">⏳ Pendente</option>
+                    <option value="cancelado">🚫 Cancelado</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Por página</label>
+                <select id="filtroTopCte" onchange="buscarCtes(0)" style="min-width:80px;">
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
+                </select>
+            </div>
+            <div style="align-self:flex-end;">
+                <button class="btn btn-primary" onclick="buscarCtes(0)">↻ Atualizar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela CT-e -->
+    <div class="card" style="margin-bottom:80px;">
+        <div id="loadingCtes" style="display:none; text-align:center; padding:32px; color:var(--text2);">
+            <div class="spinner" style="width:24px; height:24px; margin:0 auto 8px;"></div>
+            Carregando CT-es...
+        </div>
+        <div class="table-wrap">
+            <table id="tabelaCtes">
+                <thead>
+                    <tr>
+                        <th>Emissão</th>
+                        <th>Série / Nº</th>
+                        <th>Remetente</th>
+                        <th>Destinatário</th>
+                        <th>Valor Frete</th>
+                        <th>Status</th>
+                        <th>Chave</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="corpoCtes">
+                    <tr>
+                        <td colspan="8" style="text-align:center; color:var(--text3); padding:32px;">
+                            Selecione uma transportadora para carregar os CT-es.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="paginacao" style="margin-top:16px;">
+            <span class="paginacao-info" id="infoPaginacaoCte"></span>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-ghost" id="btnAnteriorCte" onclick="paginarCtes(-1)" disabled>← Anterior</button>
+                <button class="btn btn-ghost" id="btnProximoCte" onclick="paginarCtes(1)">Próximo →</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ======================================================
+     MODAL EMISSÃO CT-e
+     ====================================================== -->
+<div id="modalEmissaoCte" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.55); z-index:9000; overflow-y:auto;">
+  <div class="modal-box" style="width:860px; max-width:98vw; margin:20px auto; max-height:calc(100vh - 40px); overflow-y:auto;">
+
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">🚛 Emitir CT-e</div>
+        <div style="font-size:12px; color:var(--text2); margin-top:3px;">Conhecimento de Transporte Eletrônico — Homologação</div>
+      </div>
+      <button class="btn btn-ghost" onclick="fecharEmissaoCte()">✕ Fechar</button>
+    </div>
+
+    <!-- Abas -->
+    <div class="emp-tabs" style="margin-top:16px;">
+        <button class="emp-tab active" id="cteTabId"     onclick="cteAba('id')">    <span class="emp-tab-num">1</span> Identificação</button>
+        <button class="emp-tab"        id="cteTabEmit"   onclick="cteAba('emit')">  <span class="emp-tab-num">2</span> Transportadora</button>
+        <button class="emp-tab"        id="cteTabPartes" onclick="cteAba('partes')"><span class="emp-tab-num">3</span> Partes</button>
+        <button class="emp-tab"        id="cteTabServ"   onclick="cteAba('serv')">  <span class="emp-tab-num">4</span> Serviço / ICMS</button>
+        <button class="emp-tab"        id="cteTabCarga"  onclick="cteAba('carga')"> <span class="emp-tab-num">5</span> Carga / Docs</button>
+        <button class="emp-tab"        id="cteTabModal"  onclick="cteAba('modal')"> <span class="emp-tab-num">6</span> Modal</button>
+    </div>
+
+    <div id="cteAlerta" class="emp-alert" style="display:none; margin:8px 0 0 0;"><span id="cteAlertaIcon"></span> <span id="cteAlertaMsg"></span></div>
+
+    <!-- Aba 1: Identificação -->
+    <div id="cteAbaId" class="emp-tab-content active" style="padding-top:12px;">
+      <div class="emp-section">
+        <div class="emp-section-title">📋 Configuração do CT-e</div>
+        <div class="grid-3" style="gap:12px; margin-bottom:12px;">
+          <div class="field" style="margin:0;">
+            <label>Modelo do CT-e <span class="tip" data-tip="Normal: transporte de cargas. OS: Outros Serviços (pessoas, valores, excesso de bagagem).">?</span></label>
+            <select id="cteModelo" onchange="cteAtualizarModelo()">
+              <option value="57">57 – CT-e Normal</option>
+              <option value="67">67 – CT-e OS</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0;">
+            <label id="cteTpServLabel">Tipo do Serviço <span class="tip" data-tip="CT-e Normal: tipos de contratação. CT-e OS: tipos de transporte de pessoas/valores/bagagem.">?</span></label>
+            <select id="cteTpServ">
+              <!-- Opções serão populadas dinamicamente por cteAtualizarModelo() -->
+            </select>
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Tipo do CT-e <span class="tip" data-tip="Normal: emissão padrão. Complementar: complementa valores. Substituição: substitui CT-e anterior cancelado.">?</span></label>
+            <select id="cteTpCTe" onchange="cteAtualizarTipo()">
+              <option value="0">0 – Normal</option>
+              <option value="1">1 – Complementar</option>
+              <option value="3">3 – Substituição</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Modal de Transporte <span class="tip" data-tip="Meio de transporte utilizado. Rodoviário é o mais comum (caminhão). Cada modal exige dados específicos na Aba 6.">?</span></label>
+            <select id="cteModal" onchange="cteAtualizarModal()">
+              <option value="01">01 – Rodoviário</option>
+              <option value="02">02 – Aéreo</option>
+              <option value="03">03 – Aquaviário</option>
+              <option value="04">04 – Ferroviário</option>
+              <option value="06">06 – Multimodal</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid-2" style="gap:12px; margin-bottom:12px;">
+          <div class="field" style="margin:0;">
+            <label>Natureza da Operação</label>
+            <input type="text" id="cteNatOp" value="PRESTACAO DE SERVICO DE TRANSPORTE RODOVIARIO" maxlength="60">
+          </div>
+          <div class="field" style="margin:0;">
+            <label>CFOP <span class="tip" data-tip="5353: transporte intraestadual para contribuinte. 6353: interestadual para contribuinte. 5354/6354: não contribuinte.">?</span></label>
+            <select id="cteCFOP">
+              <option value="5353">5.353 – Transporte intraestadual (contribuinte)</option>
+              <option value="6353">6.353 – Transporte interestadual (contribuinte)</option>
+              <option value="5354">5.354 – Transporte intraestadual (não contribuinte)</option>
+              <option value="6354">6.354 – Transporte interestadual (não contribuinte)</option>
+              <option value="5932">5.932 – Prestação de serviço tributado pelo ISS</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid-2" style="gap:12px;">
+          <div class="field" style="margin:0;">
+            <label>Série</label>
+            <input type="number" id="cteSerie" value="1" min="1" max="999">
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Número (nCT)</label>
+            <input type="number" id="cteNCT" value="1" min="1">
+          </div>
+        </div>
+        <div id="cteRefCTeDiv" style="display:none; margin-top:12px;">
+          <div class="field" style="margin:0;">
+            <label>Chave CT-e Original (para Complementar/Substituição)</label>
+            <input type="text" id="cteChaveRef" placeholder="Chave de acesso do CT-e referenciado (44 dígitos)" maxlength="44" inputmode="numeric"
+                   style="font-family:'JetBrains Mono',monospace; font-size:11px;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aba 2: Transportadora (Emitente) -->
+    <div id="cteAbaEmit" class="emp-tab-content" style="padding-top:12px;">
+      <div class="emp-section">
+        <div class="emp-section-title">🏢 Empresa Transportadora (Emitente do CT-e)</div>
+        <div class="field">
+          <label>Selecionar Transportadora Cadastrada</label>
+          <div class="combobox-wrap">
+            <input type="text" id="cbCteEmit" class="combobox-input" placeholder="Buscar por nome ou CNPJ..." autocomplete="off">
+            <div id="cbCteEmitList" class="combobox-list"></div>
+          </div>
+          <select id="dropCteEmit" style="display:none;" onchange="cteSelecionarEmitente(this)"><option value="">...</option></select>
+        </div>
+        <div class="grid-2">
+          <div class="field" style="margin:0;"><label>Razão Social</label><input type="text" id="cteEmitNome" readonly style="opacity:.7;"></div>
+          <div class="field" style="margin:0;"><label>CNPJ</label><input type="text" id="cteEmitCNPJ" readonly style="opacity:.7;"></div>
+        </div>
+        <div class="grid-2" style="margin-top:10px;">
+          <div class="field" style="margin:0;"><label>IE</label><input type="text" id="cteEmitIE" placeholder="Inscrição Estadual"></div>
+          <div class="field" style="margin:0;">
+            <label>CRT <span class="tip" data-tip="1: Simples Nacional. 2: Simples Nacional – excesso de sublimite. 3: Regime Normal.">?</span></label>
+            <select id="cteEmitCRT">
+              <option value="1">1 – Simples Nacional</option>
+              <option value="3">3 – Regime Normal</option>
+            </select>
+          </div>
+        </div>
+        <input type="hidden" id="cteEmitUF">
+        <input type="hidden" id="cteEmitcMun">
+        <input type="hidden" id="cteEmitxMun">
+        <input type="hidden" id="cteEmitxLgr">
+        <input type="hidden" id="cteEmitnro">
+        <input type="hidden" id="cteEmitxBairro">
+        <input type="hidden" id="cteEmitCEP">
+      </div>
+    </div>
+
+    <!-- Aba 3: Partes -->
+    <div id="cteAbaPartes" class="emp-tab-content" style="padding-top:12px;">
+      <div class="emp-section">
+        <div class="emp-section-title">📦 Remetente (Quem envia a carga)</div>
+        <div class="grid-2" style="gap:10px;">
+          <div class="field" style="margin:0;"><label>CNPJ / CPF</label>
+            <input type="text" id="cteRemCNPJ" placeholder="CNPJ ou CPF (somente números)" maxlength="18"
+                   oninput="cteMascaraDoc(this,'rem')"></div>
+          <div class="field" style="margin:0;"><label>Razão Social / Nome</label>
+            <input type="text" id="cteRemNome" placeholder="Nome do remetente"></div>
+        </div>
+        <div class="grid-2" style="gap:10px; margin-top:8px;">
+          <div class="field" style="margin:0;"><label>IE</label><input type="text" id="cteRemIE" placeholder="ISENTO ou número"></div>
+          <div class="field" style="margin:0;"><label>E-mail</label><input type="email" id="cteRemEmail" placeholder="email@empresa.com"></div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 80px 1fr 70px; gap:10px; margin-top:8px;">
+          <div class="field" style="margin:0;"><label>Logradouro</label><input type="text" id="cteRemxLgr" placeholder="Rua, Av..."></div>
+          <div class="field" style="margin:0;"><label>Número</label><input type="text" id="cteRemnro" placeholder="SN"></div>
+          <div class="field" style="margin:0;"><label>Bairro</label><input type="text" id="cteRemxBairro" placeholder="Bairro"></div>
+          <div class="field" style="margin:0;"><label>CEP</label><input type="text" id="cteRemCEP" placeholder="00000000" maxlength="8"></div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 60px 100px; gap:10px; margin-top:8px;">
+          <div class="field" style="margin:0;"><label>Município</label><input type="text" id="cteRemxMun" placeholder="Cidade"></div>
+          <div class="field" style="margin:0;"><label>UF</label><input type="text" id="cteRemUF" placeholder="SP" maxlength="2" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
+          <div class="field" style="margin:0;"><label>Cód. IBGE</label><input type="text" id="cteRemcMun" placeholder="0000000" maxlength="7"></div>
+        </div>
+      </div>
+
+      <div class="emp-section">
+        <div class="emp-section-title">🏁 Destinatário (Quem recebe a carga)</div>
+        <div class="grid-2" style="gap:10px;">
+          <div class="field" style="margin:0;"><label>CNPJ / CPF</label>
+            <input type="text" id="cteDestCNPJ" placeholder="CNPJ ou CPF (somente números)" maxlength="18"
+                   oninput="cteMascaraDoc(this,'dest')"></div>
+          <div class="field" style="margin:0;"><label>Razão Social / Nome</label>
+            <input type="text" id="cteDestNome" placeholder="Nome do destinatário"></div>
+        </div>
+        <div class="grid-2" style="gap:10px; margin-top:8px;">
+          <div class="field" style="margin:0;"><label>IE</label><input type="text" id="cteDestIE" placeholder="ISENTO ou número"></div>
+          <div class="field" style="margin:0;"><label>E-mail</label><input type="email" id="cteDestEmail" placeholder="email@empresa.com"></div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 80px 1fr 70px; gap:10px; margin-top:8px;">
+          <div class="field" style="margin:0;"><label>Logradouro</label><input type="text" id="cteDestxLgr" placeholder="Rua, Av..."></div>
+          <div class="field" style="margin:0;"><label>Número</label><input type="text" id="cteDestnro" placeholder="SN"></div>
+          <div class="field" style="margin:0;"><label>Bairro</label><input type="text" id="cteDestxBairro" placeholder="Bairro"></div>
+          <div class="field" style="margin:0;"><label>CEP</label><input type="text" id="cteDestCEP" placeholder="00000000" maxlength="8"></div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 60px 100px; gap:10px; margin-top:8px;">
+          <div class="field" style="margin:0;"><label>Município</label><input type="text" id="cteDestxMun" placeholder="Cidade"></div>
+          <div class="field" style="margin:0;"><label>UF</label><input type="text" id="cteDestUF" placeholder="SP" maxlength="2" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
+          <div class="field" style="margin:0;"><label>Cód. IBGE</label><input type="text" id="cteDestcMun" placeholder="0000000" maxlength="7"></div>
+        </div>
+      </div>
+
+      <div class="emp-section">
+        <div class="emp-section-title">💰 Tomador do Serviço (Quem paga o frete)</div>
+        <div class="grid-2" style="gap:12px;">
+          <div class="field" style="margin:0;">
+            <label>Tomador <span class="tip" data-tip="Quem paga o frete. Remetente=0, Expedidor=1, Recebedor=2, Destinatário=3, Outros=4.">?</span></label>
+            <select id="cteToma" onchange="cteToggleTomadorOutros()">
+              <option value="0">0 – Remetente</option>
+              <option value="3" selected>3 – Destinatário</option>
+              <option value="1">1 – Expedidor</option>
+              <option value="2">2 – Recebedor</option>
+              <option value="4">4 – Outros</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Indicador IE do Tomador <span class="tip" data-tip="1: Contribuinte ICMS. 2: Contribuinte isento. 9: Não contribuinte. Aplica-se ao tomador indicado em toma3 ou toma4.">?</span></label>
+            <select id="cteIndIEToma">
+              <option value="1">1 – Contribuinte do ICMS</option>
+              <option value="2">2 – Contribuinte isento</option>
+              <option value="9">9 – Não contribuinte</option>
+            </select>
+          </div>
+        </div>
+        <div id="cteTomadorOutrosSection" style="display:none; margin-top:16px;">
+          <div class="emp-section-title" style="font-size:1rem;">🧾 Dados do Tomador Outros</div>
+          <div class="grid-3" style="gap:10px; margin-top:8px;">
+            <div class="field" style="margin:0;"><label>CNPJ</label><input type="text" id="cteToma4CNPJ" placeholder="00000000000000" maxlength="18" oninput="cteMascaraDoc(this)"></div>
+            <div class="field" style="margin:0;"><label>CPF</label><input type="text" id="cteToma4CPF" placeholder="00000000000" maxlength="14" oninput="cteMascaraDoc(this)"></div>
+            <div class="field" style="margin:0;"><label>Razão Social / Nome</label><input type="text" id="cteToma4Nome" placeholder="Nome do tomador"></div>
+          </div>
+          <div class="grid-3" style="gap:10px; margin-top:8px;">
+            <div class="field" style="margin:0;"><label>Nome Fantasia</label><input type="text" id="cteToma4xFant" placeholder="Nome fantasia"></div>
+            <div class="field" style="margin:0;"><label>IE</label><input type="text" id="cteToma4IE" placeholder="ISENTO ou número"></div>
+            <div class="field" style="margin:0;"><label>E-mail</label><input type="email" id="cteToma4Email" placeholder="email@empresa.com"></div>
+          </div>
+          <div class="grid-2" style="gap:10px; margin-top:8px;">
+            <div class="field" style="margin:0;"><label>Telefone</label><input type="text" id="cteToma4Fone" placeholder="(XX) XXXXX-XXXX"></div>
+            <div class="field" style="margin:0;"><label>Município</label><input type="text" id="cteToma4xMun" placeholder="Cidade"></div>
+          </div>
+          <div class="grid-4" style="gap:10px; margin-top:8px;">
+            <div class="field" style="margin:0;"><label>Logradouro</label><input type="text" id="cteToma4xLgr" placeholder="Rua, Av..."></div>
+            <div class="field" style="margin:0;"><label>Número</label><input type="text" id="cteToma4nro" placeholder="SN"></div>
+            <div class="field" style="margin:0;"><label>Bairro</label><input type="text" id="cteToma4xBairro" placeholder="Bairro"></div>
+            <div class="field" style="margin:0;"><label>CEP</label><input type="text" id="cteToma4CEP" placeholder="00000000" maxlength="8"></div>
+          </div>
+          <div class="grid-3" style="gap:10px; margin-top:8px;">
+            <div class="field" style="margin:0;"><label>UF</label><input type="text" id="cteToma4UF" placeholder="SP" maxlength="2" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
+            <div class="field" style="margin:0;"><label>Cód. IBGE</label><input type="text" id="cteToma4cMun" placeholder="0000000" maxlength="7"></div>
+            <div class="field" style="margin:0;"><label>Informe ao menos CNPJ ou CPF</label><input type="text" readonly value="Preencha os dados acima" style="background:#f7f7f7; border:1px solid #ddd;" tabindex="-1"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aba 4: Serviço / ICMS -->
+    <div id="cteAbaServ" class="emp-tab-content" style="padding-top:12px;">
+      <div class="emp-section">
+        <div class="emp-section-title">💵 Valores do Serviço de Transporte</div>
+        <div class="grid-2" style="gap:12px; margin-bottom:12px;">
+          <div class="field" style="margin:0;">
+            <label>Valor Total do Frete (R$) <span class="tip" data-tip="Valor total a ser pago pelo serviço de transporte.">?</span></label>
+            <input type="number" id="cteVTPrest" value="0" min="0" step="0.01" oninput="cteRecalcICMS()">
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Valor a Receber (R$) <span class="tip" data-tip="Normalmente igual ao valor total. Pode ser diferente em casos de adiantamento.">?</span></label>
+            <input type="number" id="cteVRec" value="0" min="0" step="0.01">
+          </div>
+        </div>
+        <div class="emp-section-title" style="margin-bottom:8px;">Componentes do Frete</div>
+        <div id="cteComponentes"></div>
+        <button class="btn btn-ghost" style="font-size:11px; margin-top:6px;" onclick="cteAddComponente()">+ Adicionar Componente</button>
+      </div>
+
+      <div class="emp-section">
+        <div class="emp-section-title">🧮 ICMS do Serviço</div>
+        <div class="grid-2" style="gap:12px; margin-bottom:12px;">
+          <div class="field" style="margin:0;">
+            <label>CST ICMS <span class="tip" data-tip="00: Tributado. 20: Com redução. 40: Isento. 41: Não tributado. 51: Diferimento. 60: ST. 90: Outros.">?</span></label>
+            <select id="cteCSTICMS" onchange="cteToggleICMSFields()">
+              <option value="00">00 – Tributação normal do ICMS</option>
+              <option value="20">20 – Com BC reduzida</option>
+              <option value="40">40 – Isento</option>
+              <option value="41">41 – Não tributado</option>
+              <option value="51">51 – Diferimento</option>
+              <option value="60">60 – Cobrado por ST</option>
+              <option value="90">90 – Outros</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0;" id="cteCampoAliq">
+            <label>Alíquota ICMS (%)</label>
+            <input type="number" id="ctePICMS" value="12" min="0" max="100" step="0.01" oninput="cteRecalcICMS()">
+          </div>
+        </div>
+        <div class="grid-2" style="gap:12px;" id="cteCamposICMS">
+          <div class="field" style="margin:0;">
+            <label>Base de Cálculo ICMS (R$)</label>
+            <input type="number" id="cteVBC" value="0" step="0.01" oninput="cteRecalcICMSManual()">
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Valor do ICMS (R$)</label>
+            <input type="number" id="cteVICMS" value="0" step="0.01" readonly style="opacity:.7;">
+          </div>
+        </div>
+        <div class="grid-2" style="gap:12px; margin-top:10px;">
+          <div class="field" style="margin:0;">
+            <label>% Redução BC (para CST 20)</label>
+            <input type="number" id="ctePRedBC" value="0" step="0.01" min="0">
+          </div>
+          <div class="field" style="margin:0;">
+            <label>V. Tot. Trib. (R$)</label>
+            <input type="number" id="cteVTotTrib" value="0" step="0.01" min="0">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aba 5: Carga e Documentos -->
+    <div id="cteAbaCarga" class="emp-tab-content" style="padding-top:12px;">
+      <div class="emp-section">
+        <div class="emp-section-title">📦 Informações da Carga</div>
+        <div class="grid-2" style="gap:12px; margin-bottom:12px;">
+          <div class="field" style="margin:0;">
+            <label>Valor da Carga (R$) <span class="tip" data-tip="Valor total das mercadorias transportadas (soma das NF-es).">?</span></label>
+            <input type="number" id="cteVCarga" value="0" min="0" step="0.01">
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Produto Predominante <span class="tip" data-tip="Descrição do produto que predomina na carga.">?</span></label>
+            <input type="text" id="cteProProd" placeholder="Ex: MERCADORIAS EM GERAL" maxlength="60">
+          </div>
+        </div>
+        <div class="emp-section-title" style="margin-bottom:8px;">Quantidades</div>
+        <div id="cteQuantidades"></div>
+        <button class="btn btn-ghost" style="font-size:11px; margin-top:6px;" onclick="cteAddQuantidade()">+ Adicionar Quantidade</button>
+      </div>
+
+      <div class="emp-section">
+        <div class="emp-section-title">📄 Documentos Referenciados (NF-e / NF)</div>
+        <div id="cteDocumentos"></div>
+        <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+          <button class="btn btn-ghost" style="font-size:11px;" onclick="cteAddNFe()">+ NF-e (Chave)</button>
+          <button class="btn btn-ghost" style="font-size:11px;" onclick="cteAddNF()">+ NF papel</button>
+          <button class="btn btn-ghost" style="font-size:11px;" onclick="cteAddOutro()">+ Outro Doc.</button>
+        </div>
+        <div style="margin-top:10px;">
+          <button class="btn btn-primary" style="font-size:11px;" onclick="cteBuscarNFesEmitente()">
+            🔍 Buscar NF-es da Transportadora Emitente
+          </button>
+          <span style="font-size:10px; color:var(--text3); margin-left:8px;">Importa chaves de NF-es autorizadas</span>
+        </div>
+        <div id="cteNFesDisponiveis" style="display:none; margin-top:10px; max-height:200px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius); padding:8px;"></div>
+      </div>
+    </div>
+
+    <!-- Aba 6: Modal -->
+    <div id="cteAbaModal" class="emp-tab-content" style="padding-top:12px;">
+      <!-- Rodoviário -->
+      <div id="cteSecaoRodo">
+        <div class="emp-section">
+          <div class="emp-section-title">🚛 Modal Rodoviário</div>
+          <div class="grid-2" style="gap:12px; margin-bottom:12px;">
+            <div class="field" style="margin:0;">
+              <label>RNTRC <span class="tip" data-tip="Registro Nacional de Transportadores Rodoviários de Cargas (8 dígitos).">?</span></label>
+              <input type="text" id="cteRNTRC" placeholder="00000000" maxlength="8">
+            </div>
+            <div class="field" style="margin:0;">
+              <label>Lotação? <span class="tip" data-tip="Sim se o veículo é lotação (carga exclusiva).">?</span></label>
+              <select id="cteLota">
+                <option value="false">Não</option>
+                <option value="true">Sim</option>
+              </select>
+            </div>
+          </div>
+          <div class="emp-section-title" style="font-size:12px; margin-bottom:8px;">Veículo Tração</div>
+          <div class="grid-2" style="gap:12px; margin-bottom:10px;">
+            <div class="field" style="margin:0;"><label>Placa</label><input type="text" id="ctePlaca" placeholder="ABC1D23" maxlength="8" oninput="this.value=this.value.toUpperCase()"></div>
+            <div class="field" style="margin:0;"><label>UF do Veículo</label><input type="text" id="cteVeicUF" placeholder="SP" maxlength="2" oninput="this.value=this.value.toUpperCase()"></div>
+          </div>
+          <div class="grid-2" style="gap:12px; margin-bottom:10px;">
+            <div class="field" style="margin:0;">
+              <label>Tipo Rodado</label>
+              <select id="cteTpRod">
+                <option value="1">01 – Truck</option>
+                <option value="2">02 – Toco</option>
+                <option value="3">03 – Cavalo Mecânico</option>
+                <option value="4">04 – VAN</option>
+                <option value="5">05 – Utilitário</option>
+                <option value="6">06 – Outros</option>
+              </select>
+            </div>
+            <div class="field" style="margin:0;">
+              <label>Tipo Carroceria</label>
+              <select id="cteTpCar">
+                <option value="00">00 – Não aplicável</option>
+                <option value="01">01 – Aberta</option>
+                <option value="02">02 – Fechada/Baú</option>
+                <option value="03">03 – Graneleira</option>
+                <option value="04">04 – Porta Container</option>
+                <option value="05">05 – Sider</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid-2" style="gap:12px; margin-bottom:10px;">
+            <div class="field" style="margin:0;"><label>Tara (kg)</label><input type="number" id="cteTara" value="0" min="0"></div>
+            <div class="field" style="margin:0;"><label>Cap. KG</label><input type="number" id="cteCapKG" value="0" min="0"></div>
+          </div>
+          <div class="emp-section-title" style="font-size:12px; margin-bottom:8px;">Condutor Principal</div>
+          <div class="grid-2" style="gap:12px;">
+            <div class="field" style="margin:0;"><label>Nome do Motorista</label><input type="text" id="cteMotoristaNome" placeholder="Nome completo"></div>
+            <div class="field" style="margin:0;"><label>CPF do Motorista</label>
+              <input type="text" id="cteMotoristaCPF" placeholder="000.000.000-00" maxlength="14"
+                     oninput="this.value=this.value.replace(/\D/g,'').replace(/(\d{3})(\d{3})(\d{3})(\d{2}).*/,'$1.$2.$3-$4')">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aéreo -->
+      <div id="cteSecaoAereo" style="display:none;">
+        <div class="emp-section">
+          <div class="emp-section-title">✈️ Modal Aéreo</div>
+          <div class="grid-2" style="gap:12px;">
+            <div class="field" style="margin:0;"><label>Número do Voo</label><input type="text" id="cteNVoo" placeholder="LA1234" maxlength="9"></div>
+            <div class="field" style="margin:0;"><label>Data do Voo</label><input type="date" id="cteDVoo"></div>
+          </div>
+          <div class="grid-2" style="gap:12px; margin-top:10px;">
+            <div class="field" style="margin:0;"><label>Aeroporto Origem (IATA)</label><input type="text" id="cteCIataOrig" placeholder="GRU" maxlength="4" oninput="this.value=this.value.toUpperCase()"></div>
+            <div class="field" style="margin:0;"><label>Aeroporto Destino (IATA)</label><input type="text" id="cteCIataDest" placeholder="CGH" maxlength="4" oninput="this.value=this.value.toUpperCase()"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aquaviário -->
+      <div id="cteSecaoAqua" style="display:none;">
+        <div class="emp-section">
+          <div class="emp-section-title">🚢 Modal Aquaviário</div>
+          <div class="field"><label>IRIN (Nº IMO do Navio)</label><input type="text" id="cteIRIN" placeholder="Número IMO" maxlength="10"></div>
+          <div class="field"><label>Nome da Embarcação</label><input type="text" id="cteXNavio" placeholder="Nome do navio" maxlength="60"></div>
+        </div>
+      </div>
+
+      <!-- Ferroviário -->
+      <div id="cteSecaoFerro" style="display:none;">
+        <div class="emp-section">
+          <div class="emp-section-title">🚂 Modal Ferroviário</div>
+          <div class="field"><label>Número do Trem</label><input type="text" id="cteTrem" placeholder="Número do trem" maxlength="10"></div>
+          <div class="field"><label>Tipo do Tráfego</label>
+            <select id="cteTpTraf">
+              <option value="0">0 – Próprio</option><option value="1">1 – Mútuo</option>
+              <option value="2">2 – Rodoferroviário</option><option value="3">3 – Complementar</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rodapé do modal -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
+      <button class="btn btn-ghost" onclick="fecharEmissaoCte()">✕ Fechar</button>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span id="cteResumoValor" style="font-weight:600; color:var(--green); font-size:14px;"></span>
+        <button class="btn btn-ghost" onclick="cteConferirPayload()">🔍 Conferir JSON</button>
+        <button class="btn btn-success btn-lg" id="btnTransmitirCte" onclick="transmitirCte()">
+          🚀 Transmitir CT-e
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ======================================================
+     MODAL CANCELAMENTO CT-e
+     ====================================================== -->
+<div id="modalCancelamentoCte" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; justify-content:center; align-items:center;">
+  <div class="modal-box" style="width:500px; max-height:90vh; overflow-y:auto;">
+    <div class="modal-header">
+      <div><div class="modal-title">🗑️ Cancelar CT-e</div>
+        <div style="font-size:12px; color:var(--text2); margin-top:3px;">Cancelamento de Conhecimento de Transporte</div></div>
+      <button class="btn btn-ghost" onclick="fecharModalCancelamentoCte()">✕ Fechar</button>
+    </div>
+    <div class="emp-alert warning" style="margin:16px 16px 0 16px;">
+      <span>⚠️</span><span>Este cancelamento será enviado para a SEFAZ e não poderá ser desfeito.</span>
+    </div>
+    <div style="padding:16px;">
+      <div class="emp-section">
+        <div class="emp-section-title">📋 Identificação do CT-e</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div><label style="font-size:.9em; color:var(--text2);">ID do CT-e</label>
+            <div id="cancelCteId" style="font-family:monospace; font-weight:bold; padding:8px; background:var(--bg2); border-radius:4px; word-break:break-all;">-</div></div>
+          <div><label style="font-size:.9em; color:var(--text2);">Série / Número</label>
+            <div id="cancelCteSerie" style="font-family:monospace; font-weight:bold; padding:8px; background:var(--bg2); border-radius:4px;">-</div></div>
+        </div>
+      </div>
+      <div class="emp-section">
+        <div class="emp-section-title">📝 Justificativa (obrigatória)</div>
+        <div class="field" style="margin:0;">
+          <textarea id="cancelCteJustificativa" placeholder="Justificativa com no mínimo 15 caracteres..." maxlength="255"
+            style="width:100%; min-height:100px; padding:10px; border:1px solid var(--border); border-radius:4px; font-family:Arial,sans-serif; font-size:.9em; resize:vertical;"></textarea>
+          <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:.85em;">
+            <span id="cancelCteContador" style="color:#f44336; font-weight:bold;">0/255</span>
+            <span style="color:var(--text3);">Mínimo: 15 caracteres</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex; gap:10px; justify-content:flex-end; padding:16px; border-top:1px solid var(--border);">
+      <button class="btn btn-ghost" onclick="fecharModalCancelamentoCte()">✕ Cancelar</button>
+      <button class="btn btn-danger" onclick="executarCancelamentoCte()" style="padding:10px 20px; font-weight:bold;">🗑️ Confirmar Cancelamento</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ======================================================
+     MODAL CARTA DE CORREÇÃO CT-e
+     ====================================================== -->
+<div id="modalCartaCorrecaoCte" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; justify-content:center; align-items:center;">
+  <div class="modal-box" style="width:560px; max-height:90vh; overflow-y:auto;">
+    <div class="modal-header">
+      <div><div class="modal-title">✏️ Carta de Correção CT-e</div>
+        <div style="font-size:12px; color:var(--text2); margin-top:3px;">CC-e: Correção de dados do CT-e autorizado</div></div>
+      <button class="btn btn-ghost" onclick="fecharCartaCorrecaoCte()">✕ Fechar</button>
+    </div>
+    <div class="emp-alert info" style="margin:16px 16px 0 16px;">
+      <span>ℹ️</span><span>A carta de correção não pode alterar dados que modifiquem o valor do CT-e ou a identificação do emitente/tomador.</span>
+    </div>
+    <div style="padding:16px;">
+      <div class="emp-section">
+        <div class="emp-section-title">📋 CT-e Referenciado</div>
+        <div id="cceCteInfo" style="font-family:monospace; font-size:12px; padding:8px; background:var(--bg2); border-radius:4px; word-break:break-all;">-</div>
+      </div>
+      <div class="emp-section">
+        <div class="emp-section-title">📝 Descrição da Correção</div>
+        <div class="field" style="margin:0;">
+          <label>Descreva o que deve ser corrigido <span style="color:var(--red);">*</span></label>
+          <textarea id="cceDescEvento" placeholder="Mínimo 15 caracteres. Descreva claramente o que está sendo corrigido..." maxlength="1000"
+            style="width:100%; min-height:120px; padding:10px; border:1px solid var(--border); border-radius:4px; font-family:Arial,sans-serif; font-size:.9em; resize:vertical;"></textarea>
+          <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:.85em;">
+            <span id="cceContador" style="color:var(--text2);">0/1000</span>
+            <span style="color:var(--text3);">Mínimo: 15 caracteres</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Número Sequencial do Evento</label>
+          <input type="number" id="cceNSeqEvento" value="1" min="1" max="20" style="max-width:100px;">
+        </div>
+      </div>
+    </div>
+    <div style="display:flex; gap:10px; justify-content:flex-end; padding:16px; border-top:1px solid var(--border);">
+      <button class="btn btn-ghost" onclick="fecharCartaCorrecaoCte()">✕ Fechar</button>
+      <button class="btn btn-primary" onclick="enviarCartaCorrecaoCte()" style="padding:10px 20px;">✏️ Enviar Correção</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ======================================================
+     MODAL STATUS SEFAZ CT-e
+     ====================================================== -->
+<div id="modalStatusSefazCte" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; justify-content:center; align-items:center;">
+  <div class="modal-box" style="width:480px;">
+    <div class="modal-header">
+      <div><div class="modal-title">📡 Status SEFAZ CT-e</div></div>
+      <button class="btn btn-ghost" onclick="document.getElementById('modalStatusSefazCte').style.display='none'">✕ Fechar</button>
+    </div>
+    <div style="padding:16px;" id="statusSefazCteContent">
+      <div style="text-align:center; padding:32px; color:var(--text2);">Consultando...</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ======================================================
+     MODAL VIEWER CT-e (DACTE / XML)
+     ====================================================== -->
+<div id="cteViewerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.55); z-index:9500; overflow-y:auto;">
+  <div class="modal-box" style="width:900px; max-width:98vw; margin:20px auto;">
+    <div class="danfe-viewer-header">
+      <strong id="cteViewerTitulo" style="font-size:13px;">DACTE</strong>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-ghost" style="font-size:11px;" id="cteViewerBtnXml" onclick="cteDownload('xml')">⬇ XML</button>
+        <button class="btn btn-ghost" style="font-size:11px;" id="cteViewerBtnPdf" onclick="cteDownload('pdf')">⬇ PDF</button>
+        <button class="btn btn-danger btn-icon" onclick="fecharCteViewer()">✕</button>
+      </div>
+    </div>
+    <iframe id="iframeCte" src="" style="width:100%; height:700px; border:none; border-radius:var(--radius); background:#fff;"></iframe>
+  </div>
+</div>
+
 <script src="assets/script.js"></script>
+<script src="assets/cte.js"></script>
 </body>
 </html>

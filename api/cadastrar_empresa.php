@@ -57,6 +57,20 @@ if ($requestBody === null) {
     exit;
 }
 
+// Salvar tipo de empresa localmente para filtragem
+$tipoEmpresa = $requestBody['tipo_empresa'] ?? 'cliente';
+salvarTipoEmpresaLocal($requestBody['cpf_cnpj'], $tipoEmpresa);
+
+function salvarTipoEmpresaLocal(string $cnpj, string $tipo): void {
+    $arquivo = __DIR__ . '/../data/tipos_empresa.json';
+    $tipos = [];
+    if (file_exists($arquivo)) {
+        $tipos = json_decode(file_get_contents($arquivo), true) ?? [];
+    }
+    $tipos[$cnpj] = $tipo;
+    file_put_contents($arquivo, json_encode($tipos));
+}
+
 // PUT — atualizar empresa existente
 if ($method === 'PUT') {
     $cpfCnpj = preg_replace('/\D/', '', $requestBody['cpf_cnpj'] ?? '');

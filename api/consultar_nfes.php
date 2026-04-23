@@ -24,6 +24,8 @@ $skip = max(0, min(10000, $skip)); // clamp: 0–10000
 $status  = isset($_GET['status'])  ? $_GET['status']                               : '';
 $orderby = isset($_GET['$orderby']) ? $_GET['$orderby']                            : '';
 $cpfCnpj = isset($_GET['cpf_cnpj']) ? preg_replace('/\D/', '', $_GET['cpf_cnpj']) : '';
+$numero  = isset($_GET['numero'])  ? (int)$_GET['numero']                         : 0;
+$serie   = isset($_GET['serie'])   ? (int)$_GET['serie']                          : 0;
 
 if (!$cpfCnpj) {
     http_response_code(400);
@@ -69,8 +71,9 @@ try {
         'ambiente'  => 'homologacao',
         'cpf_cnpj'  => $cpfCnpj,
     ];
-    // Nota: a API não suporta filtro por situação — o filtro é feito no lado cliente
-    if ($orderby) $params['$orderby'] = $orderby;
+    if ($numero > 0) $params['numero'] = $numero;
+    if ($serie  > 0) $params['serie']  = $serie;
+    if ($orderby)    $params['$orderby'] = $orderby;
 
     $url = "https://api.sandbox.nuvemfiscal.com.br/nfe?" . http_build_query($params);
 
