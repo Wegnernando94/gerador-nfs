@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emissor Sandbox NF-e — Login</title>
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+    <link rel="stylesheet" href="assets/style.css">
+    <style>
+        /* Sobrescreve o tema dark do sistema só nesta página */
+        body {
+            overflow: hidden;
+            background: #f5f6fa;
+            color: #1a1a2e;
+        }
+
+        .login-wrap {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* ── Lado esquerdo (marca) — fundo escuro igual ao BSS8 ── */
+        .login-brand {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 60px 56px;
+            background: #0d0d1a;
+            overflow: hidden;
+        }
+
+        /* Foto de fundo */
+        .login-brand-photo {
+            position: absolute;
+            inset: 0;
+            background-image: url('assets/login-bg.jpg');
+            background-size: cover;
+            background-position: center center;
+            opacity: 0.65;
+        }
+
+        /* Overlay escuro degradê sobre a foto */
+        .login-brand::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                135deg,
+                rgba(13,13,26,0.72) 0%,
+                rgba(26,10,62,0.65) 50%,
+                rgba(13,13,26,0.72) 100%
+            );
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .login-brand-grid {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(107,78,255,.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(107,78,255,.08) 1px, transparent 1px);
+            background-size: 48px 48px;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .login-brand-content {
+            position: relative;
+            z-index: 3;
+        }
+
+        .login-brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 32px;
+        }
+
+        .login-brand-logo img {
+            width: 52px;
+            height: 52px;
+        }
+
+        .login-brand-logo-text {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(90deg, #7c6fff, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+        }
+
+        .login-brand-logo-sub {
+            font-size: 11px;
+            color: rgba(255,255,255,.4);
+            font-weight: 400;
+            margin-top: 2px;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+
+        .login-brand-headline {
+            font-size: 34px;
+            font-weight: 700;
+            line-height: 1.25;
+            color: #ffffff;
+            margin-bottom: 16px;
+            max-width: 380px;
+        }
+
+        .login-brand-headline span {
+            background: linear-gradient(90deg, #7c6fff, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .login-brand-desc {
+            font-size: 14px;
+            color: rgba(255,255,255,.6);
+            max-width: 360px;
+            line-height: 1.75;
+            margin-bottom: 32px;
+        }
+
+        .login-brand-badges {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .login-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: rgba(255,255,255,.55);
+        }
+
+        .login-badge-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6B4EFF;
+            flex-shrink: 0;
+            box-shadow: 0 0 10px #6B4EFF88;
+        }
+
+        /* ── Lado direito (formulário) — fundo branco igual ao BSS8 ── */
+        .login-form-side {
+            width: 500px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 60px 56px;
+            background: #ffffff;
+            border-left: 1px solid #e5e7eb;
+        }
+
+        .login-form-box {
+            width: 100%;
+            max-width: 360px;
+        }
+
+        .login-form-logo {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 28px;
+        }
+
+        .login-form-logo img {
+            width: 56px;
+            height: 56px;
+        }
+
+        .login-form-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+
+        .login-form-sub {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 32px;
+            text-align: center;
+        }
+
+        .login-field {
+            margin-bottom: 16px;
+        }
+
+        .login-field label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        .login-field input {
+            width: 100%;
+            background: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            color: #1a1a2e;
+            font-size: 14px;
+            padding: 11px 14px;
+            outline: none;
+            transition: border-color .18s, box-shadow .18s;
+            font-family: inherit;
+        }
+
+        .login-field input::placeholder { color: #9ca3af; }
+
+        .login-field input:focus {
+            border-color: #6B4EFF;
+            box-shadow: 0 0 0 3px #6B4EFF20;
+        }
+
+        .login-field-pw {
+            position: relative;
+        }
+
+        .login-field-pw input {
+            padding-right: 44px;
+        }
+
+        .login-pw-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #9ca3af;
+            font-size: 16px;
+            padding: 4px;
+            line-height: 1;
+            transition: color .15s;
+        }
+
+        .login-pw-toggle:hover { color: #6b7280; }
+
+        .login-error {
+            display: none;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            border-radius: 8px;
+            font-size: 12px;
+            padding: 9px 12px;
+            margin-bottom: 16px;
+        }
+
+        .login-btn {
+            width: 100%;
+            background: #6B4EFF;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 12px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background .18s, transform .12s, box-shadow .18s;
+            font-family: inherit;
+            letter-spacing: 0.5px;
+        }
+
+        .login-btn:hover {
+            background: #5a3de0;
+            box-shadow: 0 4px 16px #6B4EFF44;
+            transform: translateY(-1px);
+        }
+
+        .login-btn:active { transform: translateY(0); }
+
+        .login-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 20px 0;
+            color: #d1d5db;
+            font-size: 12px;
+        }
+
+        .login-divider::before,
+        .login-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e5e7eb;
+        }
+
+        .login-env-tag {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 24px;
+            font-size: 11px;
+            color: #9ca3af;
+            border: 1px solid #e5e7eb;
+            border-radius: 20px;
+            padding: 5px 12px;
+        }
+
+        .login-env-tag span {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #f59e0b;
+            box-shadow: 0 0 6px #f59e0b66;
+        }
+
+        .login-footer {
+            margin-top: 32px;
+            text-align: center;
+            font-size: 11px;
+            color: #d1d5db;
+        }
+
+        @media (max-width: 860px) {
+            .login-brand { display: none; }
+            .login-form-side { width: 100%; border-left: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-wrap">
+
+    <!-- ── Lado esquerdo ── -->
+    <div class="login-brand">
+        <div class="login-brand-photo"></div>
+        <div class="login-brand-grid"></div>
+        <div class="login-brand-content">
+
+            <div class="login-brand-logo">
+                <img src="assets/favicon.svg" alt="SBN">
+                <div>
+                    <div class="login-brand-logo-text">Emissor SBN</div>
+                    <div class="login-brand-logo-sub">NF-e &amp; CT-e</div>
+                </div>
+            </div>
+
+            <div class="login-brand-headline">
+                Emissão de notas fiscais<br>em <span>ambiente sandbox</span>
+            </div>
+
+            <div class="login-brand-desc">
+                Plataforma integrada à Nuvem Fiscal para emissão,
+                consulta e gerenciamento de NF-e e CT-e em homologação.
+            </div>
+
+            <div class="login-brand-badges">
+                <div class="login-badge">
+                    <div class="login-badge-dot"></div>
+                    Transmissão direta via SEFAZ
+                </div>
+                <div class="login-badge">
+                    <div class="login-badge-dot"></div>
+                    Suporte a NF-e, CT-e e eventos
+                </div>
+                <div class="login-badge">
+                    <div class="login-badge-dot"></div>
+                    Ambiente de homologação seguro
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ── Formulário ── -->
+    <div class="login-form-side">
+        <div class="login-form-box">
+
+            <div class="login-form-logo">
+                <img src="assets/favicon.svg" alt="Logo">
+            </div>
+
+            <div class="login-form-title">Acesse sua conta</div>
+            <div class="login-form-sub">Entre com suas credenciais para continuar</div>
+
+            <div class="login-error" id="loginErro">
+                Usuário ou senha incorretos.
+            </div>
+
+            <form onsubmit="fazerLogin(event)">
+                <div class="login-field">
+                    <label>E-mail / Usuário</label>
+                    <input type="text" id="loginUser" placeholder="Insira seu usuário" autocomplete="username" autofocus>
+                </div>
+
+                <div class="login-field">
+                    <label>Senha</label>
+                    <div class="login-field-pw">
+                        <input type="password" id="loginPass" placeholder="Insira sua senha" autocomplete="current-password">
+                        <button type="button" class="login-pw-toggle" onclick="toggleSenha()" title="Mostrar/ocultar senha">👁</button>
+                    </div>
+                </div>
+
+                <button type="submit" class="login-btn">ACESSAR</button>
+            </form>
+
+            <div class="login-env-tag">
+                <span></span>
+                Ambiente Sandbox — Homologação
+            </div>
+
+            <div class="login-footer">
+                Emissor NF-e &amp; CT-e — UEX Tecnologia
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function fazerLogin(e) {
+        e.preventDefault();
+        const user = document.getElementById('loginUser').value.trim();
+        const pass = document.getElementById('loginPass').value;
+        const erro = document.getElementById('loginErro');
+
+        if (user === 'usuarionf' && pass === 'uex123') {
+            erro.style.display = 'none';
+            sessionStorage.setItem('sbn_auth', '1');
+            window.location.href = 'index.html';
+        } else {
+            erro.style.display = 'block';
+            document.getElementById('loginPass').value = '';
+            document.getElementById('loginPass').focus();
+        }
+    }
+
+    function toggleSenha() {
+        const inp = document.getElementById('loginPass');
+        inp.type = inp.type === 'password' ? 'text' : 'password';
+    }
+</script>
+
+</body>
+</html>

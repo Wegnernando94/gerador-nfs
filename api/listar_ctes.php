@@ -55,8 +55,33 @@ try {
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    http_response_code($httpCode);
-    echo $resposta;
+    $finalData = json_decode($resposta, true);
+
+    // Mesclar com simulados locais
+    $fileSim = __DIR__ . '/../data/ctes_simulados.json';
+    if (file_exists($fileSim)) {
+        $simulados = json_decode(file_get_contents($fileSim), true) ?: [];
+        
+        // Filtrar simulados por CNPJ se necessário
+        if ($cpfCnpj) {
+            $simulados = array_filter($simulados, function($s) use ($cpfCnpj) {
+                $cnpjEmit = preg_replace('/\D/', '', $s['payload']['infCte']['emit']['CNPJ'] ?? '');
+                return $cnpjEmit === $cpfCnpj;
+            });
+        }
+
+        if (!empty($simulados)) {
+            if (!isset($finalData['data'])) {
+                $finalData = ['data' => [], 'count' => 0];
+            }
+            // Adicionar ao topo
+            $finalData['data'] = array_merge(array_values($simulados), $finalData['data']);
+            $finalData['count'] += count($simulados);
+        }
+    }
+
+    http_response_code($httpCode === 200 ? 200 : $httpCode);
+    echo json_encode($finalData);
 
 } catch (Exception $e) {
     http_response_code(500);

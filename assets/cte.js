@@ -176,7 +176,8 @@ const UF_IBGE = {
 async function cteEditar(id) {
     try {
         mostrarToast('Carregando dados para reemissão...', 'info');
-        const r = await fetch('api/buscar_cte_detalhes.php?id=' + id);
+        const endpoint = id.toString().startsWith('sim_') ? 'api/buscar_simulado.php?id=' : 'api/buscar_cte_detalhes.php?id=';
+        const r = await fetch(endpoint + id);
         const d = await r.json();
         
         if (!r.ok || d.error) {
@@ -184,12 +185,15 @@ async function cteEditar(id) {
             return;
         }
 
+        // Se for simulado, o payload está em d.payload
+        const dados = d.payload || d;
+
         // Abre a modal de emissão
         abrirEmissaoCte();
         
         // Aguarda um instante para a modal renderizar antes de preencher
         setTimeout(() => {
-            preencherFormularioCteComDados(d, false); // false = modo reemissão/edição
+            preencherFormularioCteComDados(dados, false); // false = modo reemissão/edição
             mostrarToast('Dados carregados! Você pode ajustar e transmitir novamente.', 'success');
         }, 500);
 
@@ -201,7 +205,8 @@ async function cteEditar(id) {
 async function cteClonar(id) {
     try {
         mostrarToast('Clonando dados do CT-e...', 'info');
-        const r = await fetch('api/buscar_cte_detalhes.php?id=' + id);
+        const endpoint = id.toString().startsWith('sim_') ? 'api/buscar_simulado.php?id=' : 'api/buscar_cte_detalhes.php?id=';
+        const r = await fetch(endpoint + id);
         const d = await r.json();
         
         if (!r.ok || d.error) {
@@ -209,11 +214,13 @@ async function cteClonar(id) {
             return;
         }
 
+        const dados = d.payload || d;
+
         // Abre a modal de emissão
         abrirEmissaoCte();
         
         setTimeout(() => {
-            preencherFormularioCteComDados(d, true); // true = modo clone
+            preencherFormularioCteComDados(dados, true); // true = modo clone
             mostrarToast('CT-e clonado! Série e Número reiniciados para novo lançamento.', 'success');
         }, 500);
 
@@ -528,7 +535,8 @@ async function cteConsultarCnpjTomador(input) {
 
         const end = d.estabelecimento?.endereco || d.endereco || {};
         document.getElementById('cteTomaNome').value   = d.razao_social || d.nome || '';
-        document.getElementById('cteTomaIE').value     = ''; 
+        document.getElementById('cteTomaxFant').value  = d.nome_fantasia || d.fantasia || d.estabelecimento?.nome_fantasia || '';
+        document.getElementById('cteTomaIE').value     = '';
         document.getElementById('cteTomaxLgr').value   = end.logradouro || '';
         document.getElementById('cteTomanro').value    = end.numero || 'SN';
         document.getElementById('cteTomaxBairro').value = end.xBairro || end.bairro || '';
@@ -606,6 +614,7 @@ var CTE_STATUS_BADGE = {
     rejeitado:  '<span class="status-badge status-rej">❌ Rejeitado</span>',
     cancelado:  '<span class="status-badge status-canc">🚫 Cancelado</span>',
     pendente:   '<span class="status-badge status-pend">⏳ Pendente</span>',
+    simulado:   '<span class="status-badge" style="background:#6366f1;color:#fff;">🧪 Simulado</span>',
 };
 
 function renderCtes(lista) {
@@ -616,20 +625,26 @@ function renderCtes(lista) {
         return;
     }
     tbody.innerHTML = lista.map(function(c) {
-        var st    = (c.status||'').toLowerCase();
+        var isSim = (c.id && c.id.toString().startsWith('sim_'));
+        var st    = isSim ? 'simulado' : (c.status||'').toLowerCase();
         var badge = CTE_STATUS_BADGE[st] || ('<span class="status-badge">' + (c.status||'—') + '</span>');
-        var rem   = (c.remetente && (c.remetente.nome || c.remetente.razao_social)) || '—';
-        var dest  = (c.destinatario && (c.destinatario.nome || c.destinatario.razao_social)) || '—';
-        var val   = (c.valores && c.valores.valor_frete != null) ? 'R$ ' + Number(c.valores.valor_frete).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—';
-        var chave = (c.chave_acesso||'').replace(/\D/g,'');
+        
+        var rem   = isSim ? (c.payload.infCte.rem.xNome || '—') : ((c.remetente && (c.remetente.nome || c.remetente.razao_social)) || '—');
+        var dest  = isSim ? (c.payload.infCte.dest.xNome || '—') : ((c.destinatario && (c.destinatario.nome || c.destinatario.razao_social)) || '—');
+        var valFrete = isSim ? c.valor_total : (c.valores ? c.valores.valor_frete : null);
+        var val   = (valFrete != null) ? 'R$ ' + Number(valFrete).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—';
+        
+        var chave = (c.chave_acesso || c.chave || '').replace(/\D/g,'');
         var serie = c.serie||'?';
         var nCT   = c.numero||'?';
         var dhEmi = c.data_emissao ? c.data_emissao.slice(0,10).split('-').reverse().join('/') : '—';
         var id    = c.id || '';
+        
         var isAut = st === 'autorizado';
         var isCan = st === 'cancelado';
         var isRej = st === 'rejeitado';
         var isPend= st === 'pendente';
+        var isSimul= st === 'simulado';
 
         return '<tr>' +
             '<td>' + dhEmi + '</td>' +
@@ -641,14 +656,14 @@ function renderCtes(lista) {
             '<td style="font-family:monospace;font-size:9px;max-width:120px;overflow:hidden;text-overflow:ellipsis;" title="' + chave + '">' + (chave||'—') + '</td>' +
             '<td><div style="display:flex;gap:3px;flex-wrap:wrap;">' +
               (isAut ? '<button class="btn-cte-action" onclick="abrirCteViewer(\'' + id + '\',\'' + serie + '/' + nCT + '\')">👁 DACTE</button>' : '') +
-              ((isAut||isCan) ? '<button class="btn-cte-action" onclick="cteDownloadDireto(\'' + id + '\',\'xml\')">📄 XML</button>' : '') +
+              ((isAut||isCan||isSimul) ? '<button class="btn-cte-action" onclick="cteDownloadDireto(\'' + id + '\',\'xml\')">📄 XML</button>' : '') +
               (isAut ? '<button class="btn-cte-action" onclick="cteDownloadDireto(\'' + id + '\',\'pdf\')">🖨 PDF</button>' : '') +
               (isCan ? '<button class="btn-cte-action" onclick="cteDownloadDireto(\'' + id + '\',\'cancelamento_xml\')">📄 XML Can.</button>' : '') +
               (isCan ? '<button class="btn-cte-action" onclick="cteDownloadDireto(\'' + id + '\',\'cancelamento_pdf\')">🖨 PDF Can.</button>' : '') +
               (isAut ? '<button class="btn-cte-action danger" onclick="abrirCancelamentoCte(\'' + id + '\',\'' + serie + '/' + nCT + '\')">🗑 Cancelar</button>' : '') +
               (isAut ? '<button class="btn-cte-action" onclick="abrirCartaCorrecaoCte(\'' + id + '\')">✏️ Correção</button>' : '') +
               ((isRej||isPend) ? '<button class="btn-cte-action success" onclick="sincronizarCte(\'' + id + '\')">🔄 Sincronizar</button>' : '') +
-              ((isRej||isPend) ? '<button class="btn-cte-action" style="background:var(--primary);color:#fff;" onclick="cteEditar(\'' + id + '\')">✍️ Reemitir</button>' : '') +
+              ((isRej||isPend||isSimul) ? '<button class="btn-cte-action" style="background:var(--primary);color:#fff;" onclick="cteEditar(\'' + id + '\')">✍️ Reemitir</button>' : '') +
               '<button class="btn-cte-action" style="background:var(--purple);color:#fff;" onclick="cteClonar(\'' + id + '\')">📋 Clonar</button>' +
               (isRej ? '<button class="btn-cte-action" onclick="cteDownloadDireto(\'' + id + '\',\'xml_conhecimento\')">📄 XML Rej.</button>' : '') +
             '</div></td></tr>';
@@ -676,7 +691,21 @@ function cteDownload(tipo) {
     if (_cteViewerId) cteDownloadDireto(_cteViewerId, tipo);
 }
 
-function cteDownloadDireto(id, tipo) {
+async function cteDownloadDireto(id, tipo) {
+    if (id.toString().startsWith('sim_')) {
+        if (tipo === 'xml') {
+            try {
+                const r = await fetch('api/buscar_simulado.php?id=' + id);
+                const d = await r.json();
+                if (d.xml) {
+                    baixarXmlString(d.xml, 'CTE_SIMULADO_' + d.numero + '.xml');
+                    return;
+                }
+            } catch(e) { console.error('Erro ao baixar XML simulado', e); }
+        }
+        mostrarToast('Tipo de download não disponível para simulação.', 'warning');
+        return;
+    }
     window.open('api/download_cte.php?id=' + encodeURIComponent(id) + '&tipo=' + tipo, '_blank');
 }
 
@@ -1541,7 +1570,7 @@ function cteMontarPayload() {
     var dest = buildPessoa('cteDest', 'enderDest');
     var tomadorOutros = null;
     if (parseInt(cteGetV('cteToma')) === 4) {
-        tomadorOutros = buildPessoa('cteToma4', 'enderToma');
+        tomadorOutros = buildPessoa('cteToma', 'enderToma');
         if (!tomadorOutros.xNome) {
             throw new Error('Preencha o nome do Tomador Outros.');
         }

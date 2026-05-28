@@ -6,6 +6,7 @@
     <title>Emissor Sandbox NF-e</title>
     <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
     <link rel="stylesheet" href="assets/style.css">
+    <script>if (!sessionStorage.getItem('sbn_auth')) { window.location.replace('login.html'); }</script>
 </head>
 <body>
 
@@ -1384,7 +1385,7 @@
             <div class="field" style="margin:0;">
                 <label>CNPJ</label>
                 <div style="display:flex; gap:4px;">
-                    <input type="text" id="cteTomaCNPJ" placeholder="00000000000000" maxlength="18" oninput="cteMascaraDoc(this)">
+                    <input type="text" id="cteTomaCNPJ" placeholder="00000000000000" maxlength="18" oninput="cteMascaraDoc(this); if(this.value.replace(/\D/g,'').length===14) cteConsultarCnpjTomador(this)">
                     <button class="btn btn-ghost" title="Consultar CNPJ" onclick="cteConsultarCnpjTomador(this.previousElementSibling)" style="padding: 2px 8px;">🔍</button>
                 </div>
             </div>

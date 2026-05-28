@@ -128,6 +128,80 @@ function limparPainelRef() {
 
 let _notaRefData = null;
 
+function toggleCobranca() {
+    const div = document.getElementById('cobrancaConteudo');
+    const icon = document.getElementById('cobrancaToggleIcon');
+    const open = div.style.display === '';
+    div.style.display = open ? 'none' : '';
+    icon.textContent = open ? '▼' : '▲';
+}
+
+let _duplicatas = [];
+
+function addDuplicata() {
+    const container = document.getElementById('listaDuplicatas');
+    const index = _duplicatas.length;
+    
+    const div = document.createElement('div');
+    div.className = 'duplicata-item';
+    div.style.cssText = 'border: 1px solid var(--border); border-radius: 4px; padding: 12px; margin-bottom: 8px; background: var(--bg1);';
+    
+    div.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <span style="font-weight: 600; color: var(--text1);">Parcela ${index + 1}</span>
+            <button class="btn btn-danger" onclick="removerDuplicata(${index})" style="font-size: 11px; padding: 3px 8px;">Remover</button>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+            <div class="field">
+                <label>Número da Duplicata</label>
+                <input type="text" id="nDup_${index}" placeholder="001" style="width: 100%;">
+            </div>
+            <div class="field">
+                <label>Data de Vencimento</label>
+                <input type="date" id="dVenc_${index}" style="width: 100%;">
+            </div>
+            <div class="field">
+                <label>Valor (R$)</label>
+                <input type="number" id="vDup_${index}" step="0.01" placeholder="0,00" style="width: 100%;" oninput="atualizarValorLiquido()">
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(div);
+    _duplicatas.push({
+        nDup: '',
+        dVenc: '',
+        vDup: 0
+    });
+}
+
+function removerDuplicata(index) {
+    _duplicatas.splice(index, 1);
+    atualizarListaDuplicatas();
+    atualizarValorLiquido();
+}
+
+function atualizarListaDuplicatas() {
+    const container = document.getElementById('listaDuplicatas');
+    container.innerHTML = '';
+    _duplicatas.forEach((dup, index) => {
+        addDuplicata();
+        // Restaurar valores
+        setTimeout(() => {
+            document.getElementById(`nDup_${index}`).value = dup.nDup;
+            document.getElementById(`dVenc_${index}`).value = dup.dVenc;
+            document.getElementById(`vDup_${index}`).value = dup.vDup;
+        }, 10);
+    });
+}
+
+function atualizarValorLiquido() {
+    const vOrig = parseFloat(document.getElementById('vOrig').value) || 0;
+    const vDesc = parseFloat(document.getElementById('vDesc').value) || 0;
+    const vLiq = vOrig - vDesc;
+    document.getElementById('vLiq').value = vLiq.toFixed(2);
+}
+
 async function consultarNotaRef() {
     const chave = getV('refNFe').replace(/\D/g, '');
     const erro  = document.getElementById('erroRef');
@@ -350,7 +424,7 @@ async function transmitirDevolucao(notaOriginal) {
                         vPIS: vPisTot, vCOFINS: vCofinsTot, vOutro: 0, vNF: vTot
                     }
                 },
-                transp: { modFrete: 9 },
+                transp: (typeof getTranspNFe === 'function') ? getTranspNFe() : { modFrete: 9 },
                 pag: { detPag: [{ tPag: '90', vPag: 0 }] }
             }
         };
@@ -1018,7 +1092,7 @@ async function transmitirParaSefaz() {
                 dest: { CNPJ: clean(getV('cnpjDest')), xNome: getV('xNomeDest'), indIEDest: indIEDest, enderDest: { xLgr: getV('xLgrDest'), nro: getV('nroDest'), xBairro: getV('xBairroDest'), cMun: getV('cMunDest'), xMun: getV('xMunDest'), UF: getV('ufDest'), CEP: getV('cepDest') } },
                 det: [],
                 total: { ICMSTot: { vBC: 0, vICMS: 0, vICMSDeson: 0, vFCP: 0, vBCST: 0, vST: 0, vFCPST: 0, vFCPSTRet: 0, vProd: 0, vFrete: 0, vSeg: 0, vDesc: 0, vII: 0, vIPI: 0, vIPIDevol: 0, vPIS: 0, vCOFINS: 0, vOutro: 0, vNF: 0 } },
-                transp: { modFrete: 9 },
+                transp: (typeof getTranspNFe === 'function') ? getTranspNFe() : { modFrete: 9 },
                 pag: { detPag: [{ tPag: "01", vPag: 0 }] }
             }
         };
@@ -1130,6 +1204,12 @@ async function transmitirParaSefaz() {
         payload.infNFe.total.ICMSTot.vNF        = vNFN;
         payload.infNFe.pag.detPag[0].vPag       = vNFN;
 
+        // Adicionar cobrança/duplicatas se informadas
+        const cobranca = getCobrancaNFe();
+        if (cobranca) {
+            payload.infNFe.cobr = cobranca;
+        }
+
         const resp = await fetch('api/transmitir.php', { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': await getCsrfToken() } });
         const res = await resp.json();
 
@@ -1140,17 +1220,13 @@ async function transmitirParaSefaz() {
 
         exibirResultado(res);
 
-        // Após autorização, re-busca o próximo número respeitando a série
+        // Auto-incrementa o número para a próxima emissão
         if (res.status === 'autorizado') {
-            const cnpj = document.getElementById('cnpjEmit')?.value.replace(/\D/g, '');
-            if (cnpj) {
-                buscarProximoNNF(cnpj);
-            } else {
-                const nNFField = document.getElementById('nNF');
-                if (nNFField) {
-                    const proximo = parseInt(nNFField.value) + 1;
-                    nNFField.value = proximo;
-                }
+            const nNFField = document.getElementById('nNF');
+            if (nNFField) {
+                const proximo = parseInt(nNFField.value) + 1;
+                nNFField.value = proximo;
+                nNFField.title = `Último número emitido: ${parseInt(nNFField.value) - 1}. Próximo: ${proximo}`;
             }
         }
 
@@ -1183,6 +1259,7 @@ async function abrirConsulta() {
     console.log('abrirConsulta() chamada');
     document.getElementById('modalConsulta').style.display = 'block';
     document.body.style.overflow = 'hidden';
+    initTableResizer('tabelaNfes');
     await popularEmpresasConsulta();
     buscarNotas(0);
 }
@@ -1310,16 +1387,15 @@ async function buscarNotas(skip) {
                 const st      = n.status || 'outro';
                 const badgeCls = { autorizado:'badge-autorizado', rejeitado:'badge-rejeitado', pendente:'badge-pendente', cancelado:'badge-cancelado' }[st] || 'badge-outro';
                 const chave   = n.chave || '-';
-                const chaveShort = chave !== '-' ? chave.slice(0,10) + '...' : '-';
                 const podeImprimir = st === 'autorizado';
                 return `<tr data-numero="${n.numero || ''}" data-cnpj="${cnpjEmit}" data-dest="${dest.toLowerCase()}">
                     <td>${data}</td>
                     <td>${n.serie || '-'} / ${n.numero || '-'}</td>
-                    <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${emitente}">${emitente}</td>
-                    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${dest}">${dest}</td>
+                    <td title="${emitente}">${emitente}</td>
+                    <td title="${dest}">${dest}</td>
                     <td>${valor}</td>
                     <td><span class="badge ${badgeCls}">${st}</span></td>
-                    <td style="font-family:monospace;font-size:0.75em;" title="${chave}">${chaveShort}</td>
+                    <td style="font-family:monospace; font-size:0.75em;" title="${chave}">${chave}</td>
                     <td style="white-space:nowrap;">
                         ${podeImprimir ? `
                         <button class="btn btn-primary" style="padding:4px 10px;font-size:0.8em;" onclick="verDanfeConsulta('${n.id}','${n.serie}/${n.numero}')">Ver PDF</button>
@@ -1467,7 +1543,7 @@ function showToast(msg, type = 'info', duration = 5000) {
     const container = document.getElementById('toast-container');
     if (!container) return;
     const toast = document.createElement('div');
-    const icon = { success: '✅', error: '❌', info: 'ℹ️' }[type] || 'ℹ️';
+    const icon = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' }[type] || 'ℹ️';
     toast.className = `toast toast-${type}`;
     toast.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
     container.appendChild(toast);
@@ -1476,6 +1552,8 @@ function showToast(msg, type = 'info', duration = 5000) {
         setTimeout(() => toast.remove(), 300);
     }, duration);
 }
+
+const mostrarToast = showToast;
 
 function abrirDanfe() {
     if (!_ultimoIdNfe) return;
@@ -1534,8 +1612,10 @@ async function carregarDropdownsEmpresas() {
         }
         let opt = res.data.map(e => {
             const end = e.endereco || {};
+            const tipo = e.tipo_empresa || 'cliente';
             return `<option value="${e.cpf_cnpj}"
                 data-nome="${e.nome_razao_social}"
+                data-tipo="${tipo}"
                 data-uf="${end.uf || ''}"
                 data-cmun="${end.codigo_municipio || ''}"
                 data-xmun="${end.cidade || ''}"
@@ -1547,10 +1627,49 @@ async function carregarDropdownsEmpresas() {
             >${e.nome_razao_social}</option>`;
         }).join('');
         console.log('Opções criadas:', opt);
+        
+        // Filtrar transportadoras para dropdown de transporte
+        const transportadoras = res.data.filter(e => (e.tipo_empresa || 'cliente') === 'transportadora');
+        let optTransp = transportadoras.map(e => {
+            const end = e.endereco || {};
+            return `<option value="${e.cpf_cnpj}"
+                data-nome="${e.nome_razao_social}"
+                data-tipo="transportadora"
+                data-uf="${end.uf || ''}"
+                data-cmun="${end.codigo_municipio || ''}"
+                data-xmun="${end.cidade || ''}"
+                data-xlgr="${end.logradouro || ''}"
+                data-nro="${end.numero || 'SN'}"
+                data-xbairro="${end.bairro || ''}"
+                data-cep="${(end.cep || '').replace(/\D/g,'')}"
+                data-ie="${e.inscricao_estadual || ''}"
+            >${e.nome_razao_social}</option>`;
+        }).join('');
+        
         document.getElementById('dropEmit').innerHTML = '<option value="">Selecione...</option>' + opt;
         document.getElementById('dropDest').innerHTML = '<option value="">Selecione...</option>' + opt;
+        document.getElementById('dropTransp').innerHTML = '<option value="">Selecione transportadora...</option>' + optTransp;
+        
+        // Popular também os dropdowns do CT-e se existirem
+        const dropCteEmit = document.getElementById('dropCteEmit');
+        if (dropCteEmit) dropCteEmit.innerHTML = '<option value="">Selecione transportadora...</option>' + optTransp;
+
+        const dropCteRem = document.getElementById('dropCteRem');
+        if (dropCteRem) dropCteRem.innerHTML = '<option value="">Selecione remetente...</option>' + opt;
+
+        const dropCteDest = document.getElementById('dropCteDest');
+        if (dropCteDest) dropCteDest.innerHTML = '<option value="">Selecione destinatário...</option>' + opt;
+        
+        const filtroEmpresaCte = document.getElementById('filtroEmpresaCte');
+        if (filtroEmpresaCte) filtroEmpresaCte.innerHTML = '<option value="">Selecione transportadora...</option>' + optTransp;
+
         initCombobox('cbEmit', 'dropEmit');
         initCombobox('cbDest', 'dropDest');
+        initCombobox('cbTransp', 'dropTransp');
+        initCombobox('cbCteEmit', 'dropCteEmit');
+        initCombobox('cbCteRem', 'dropCteRem');
+        initCombobox('cbCteDest', 'dropCteDest');
+        initCombobox('cbFiltroCte', 'filtroEmpresaCte');
     } catch(e) { console.error("Erro ao carregar empresas", e); }
 }
 
@@ -1701,50 +1820,18 @@ function selecionarEmpresa(sel, tipo) {
     }
 }
 
-// Status que impedem reutilização do número de NF
-const STATUS_BLOQUEADOS = ['autorizado', 'denegado'];
-
-// Cache das notas emitidas por CNPJ+série para evitar múltiplas requisições
-let _notasCache = { cnpj: null, serie: null, notas: [] };
-
-async function _buscarTodasNotasEmitidas(cnpj, serie) {
-    if (_notasCache.cnpj === cnpj && _notasCache.serie === serie) return _notasCache.notas;
-    const notas = [];
-    let skip = 0;
-    while (true) {
-        const params = new URLSearchParams({ top: 100, skip, cpf_cnpj: cnpj, serie });
+async function buscarProximoNNF(cnpj) {
+    const nNFField = document.getElementById('nNF');
+    if (!nNFField || !cnpj) return;
+    nNFField.title = 'Buscando próximo número...';
+    try {
+        const params = new URLSearchParams({ top: 1, skip: 0, cpf_cnpj: cnpj, '$orderby': 'numero desc' });
         const resp = await fetch('api/consultar_nfes.php?' + params);
         const res  = await resp.json();
-        const lote = res.data || [];
-        notas.push(...lote);
-        if (lote.length < 100) break;
-        skip += 100;
-        if (skip > 9900) break; // segurança
-    }
-    _notasCache = { cnpj, serie, notas };
-    return notas;
-}
-
-function _invalidarCacheNotas() {
-    _notasCache = { cnpj: null, serie: null, notas: [] };
-}
-
-async function buscarProximoNNF(cnpj) {
-    const nNFField   = document.getElementById('nNF');
-    const serieField = document.getElementById('serie');
-    if (!nNFField || !cnpj) return;
-    const serie = parseInt(serieField?.value) || 1;
-    nNFField.title = 'Buscando próximo número...';
-    _invalidarCacheNotas();
-    try {
-        const notas = await _buscarTodasNotasEmitidas(cnpj, serie);
-        // Só considera notas com status que bloqueiam reutilização
-        const bloqueadas = notas
-            .filter(n => STATUS_BLOQUEADOS.includes((n.status || '').toLowerCase()))
-            .map(n => parseInt(n.numero) || 0);
-        const maior = bloqueadas.length > 0 ? Math.max(...bloqueadas) : 0;
+        const notas = res.data || [];
+        const maior = notas.length > 0 ? (parseInt(notas[0].numero) || 0) : 0;
         nNFField.value = maior + 1;
-        nNFField.title = `Último número autorizado: ${maior} (série ${serie}). Próximo: ${maior + 1}`;
+        nNFField.title = `Último número emitido: ${maior}. Próximo: ${maior + 1}`;
     } catch(e) {
         nNFField.title = 'Não foi possível buscar o último número';
     }
@@ -1752,14 +1839,11 @@ async function buscarProximoNNF(cnpj) {
 
 async function validarNNFDisponivel(cnpj, nNF, serie) {
     try {
-        const notas = await _buscarTodasNotasEmitidas(cnpj, serie);
-        // Busca exata por número E série — bloqueia só se tiver status que impede reutilização
-        const bloqueada = notas.find(n =>
-            parseInt(n.numero) === nNF &&
-            parseInt(n.serie) === serie &&
-            STATUS_BLOQUEADOS.includes((n.status || '').toLowerCase())
-        );
-        return bloqueada || null;
+        const params = new URLSearchParams({ top: 1, skip: 0, cpf_cnpj: cnpj, numero: nNF, serie: serie });
+        const resp = await fetch('api/consultar_nfes.php?' + params);
+        const res  = await resp.json();
+        const notas = res.data || [];
+        return notas.length > 0 ? notas[0] : null;
     } catch(e) {
         return null;
     }
@@ -1809,11 +1893,7 @@ function iniciarValidacaoNNF() {
 
     nNFField.addEventListener('change', agendarChecagem);
     nNFField.addEventListener('input',  agendarChecagem);
-    serieField.addEventListener('change', () => {
-        const cnpj = document.getElementById('cnpjEmit')?.value.replace(/\D/g, '');
-        if (cnpj && cnpj.length === 14) buscarProximoNNF(cnpj);
-        agendarChecagem();
-    });
+    serieField.addEventListener('change', agendarChecagem);
 }
 
 // ==========================================
@@ -1885,6 +1965,10 @@ function empAlternarTipo() {
     document.getElementById('empCpfCnpj').placeholder = isPF ? '000.000.000-00' : '00.000.000/0000-00';
     document.getElementById('empCpfCnpj').maxLength    = isPF ? 14 : 18;
     document.getElementById('empBtnBuscar').style.display = isPF ? 'none' : '';
+}
+
+function empGetTipoEmpresa() {
+    return document.getElementById('empTipoEmpresaTransportadora').checked ? 'transportadora' : 'cliente';
 }
 
 // --- Máscaras ---
@@ -1998,6 +2082,7 @@ async function empSalvar() {
         nome_fantasia:      document.getElementById('empNomeFantasia').value.trim(),
         email:              document.getElementById('empEmail').value.trim(),
         fone:               document.getElementById('empFone').value.replace(/\D/g, ''),
+        tipo_empresa:       empGetTipoEmpresa(),
         inscricao_estadual: document.getElementById('empIE').value.trim(),
         inscricao_municipal:document.getElementById('empIM').value.trim(),
         endereco: {
@@ -2713,7 +2798,7 @@ async function rnvReenviar() {
                 }
             },
             transp: { modFrete: 9 },
-            pag: { detPag: [{ tPag: '01', vPag: vNF }] }
+            pag: { detPag: [{ tPag: '01', vPag: vNF }] }  // reenvio não usa dados de transporte do form
         }
     };
 
@@ -3006,3 +3091,192 @@ document.addEventListener('DOMContentLoaded', () => {
         textarea.addEventListener('input', atualizarContadorCancelamento);
     }
 });
+
+// ==========================================
+// FUNÇÕES DE SELEÇÃO DE CT-e
+// ==========================================
+function cteSelecionarEmitente(sel) {
+    const d = sel.options[sel.selectedIndex].dataset;
+    document.getElementById('cteEmitNome').value = d.nome || "";
+    document.getElementById('cteEmitCNPJ').value = sel.value;
+    document.getElementById('cteEmitIE').value = d.ie || "";
+    document.getElementById('cteEmitUF').value = d.uf || "";
+    document.getElementById('cteEmitcMun').value = d.cmun || "";
+    document.getElementById('cteEmitxMun').value = d.xmun || "";
+    document.getElementById('cteEmitxLgr').value = d.xlgr || "";
+    document.getElementById('cteEmitnro').value = d.nro || "SN";
+    document.getElementById('cteEmitxBairro').value = d.xbairro || "";
+    document.getElementById('cteEmitCEP').value = d.cep || "";
+}
+
+function cteSelecionarRemetente(sel) {
+    const d = sel.options[sel.selectedIndex].dataset;
+    document.getElementById('cteRemCNPJ').value = sel.value;
+    document.getElementById('cteRemNome').value = d.nome || "";
+    document.getElementById('cteRemIE').value = d.ie || "";
+    document.getElementById('cteRemUF').value = d.uf || "";
+    document.getElementById('cteRemcMun').value = d.cmun || "";
+    document.getElementById('cteRemxMun').value = d.xmun || "";
+    document.getElementById('cteRemxLgr').value = d.xlgr || "";
+    document.getElementById('cteRemnro').value = d.nro || "SN";
+    document.getElementById('cteRemxBairro').value = d.xbairro || "";
+    document.getElementById('cteRemCEP').value = d.cep || "";
+}
+
+function cteSelecionarDestinatario(sel) {
+    const d = sel.options[sel.selectedIndex].dataset;
+    document.getElementById('cteDestCNPJ').value = sel.value;
+    document.getElementById('cteDestNome').value = d.nome || "";
+    document.getElementById('cteDestIE').value = d.ie || "";
+    document.getElementById('cteDestUF').value = d.uf || "";
+    document.getElementById('cteDestcMun').value = d.cmun || "";
+    document.getElementById('cteDestxMun').value = d.xmun || "";
+    document.getElementById('cteDestxLgr').value = d.xlgr || "";
+    document.getElementById('cteDestnro').value = d.nro || "SN";
+    document.getElementById('cteDestxBairro').value = d.xbairro || "";
+    document.getElementById('cteDestCEP').value = d.cep || "";
+}
+
+async function abrirEmissaoCte() {
+    const modal = document.getElementById('modalEmissaoCte');
+    if (!modal) return;
+    modal.style.display = 'block';
+
+    ['cbCteEmit','cbCteRem','cbCteDest','cbFiltroCte'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el._cbInited = false; el.value = ''; }
+    });
+
+    await carregarDropdownsEmpresas();
+    cteAba('id');
+}
+
+function fecharEmissaoCte() {
+    const modal = document.getElementById('modalEmissaoCte');
+    if (modal) modal.style.display = 'none';
+}
+
+function cteAba(aba) {
+    document.querySelectorAll('[id^="cteAba"]').forEach(el => {
+        if (el.id !== 'cteAlerta') el.classList.remove('active');
+    });
+    document.querySelectorAll('[id^="cteTab"]').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    const abaEl = document.getElementById('cteAba' + aba.charAt(0).toUpperCase() + aba.slice(1));
+    const btnEl = document.getElementById('cteTab' + aba.charAt(0).toUpperCase() + aba.slice(1));
+
+    if (abaEl) abaEl.classList.add('active');
+    if (btnEl) btnEl.classList.add('active');
+}
+
+async function buscarDadosNfePorChave(chave) {
+    if (!chave || chave.length < 44) {
+        console.warn('Chave de NF-e inválida');
+        return null;
+    }
+
+    try {
+        const params = new URLSearchParams({ chave: chave.replace(/\D/g, '') });
+        const resp = await fetch('api/consultar_nfes.php?' + params);
+        if (!resp.ok) return null;
+
+        const data = await resp.json();
+        if (!data || !data.data || data.data.length === 0) return null;
+
+        const nfe = data.data[0];
+        return {
+            chave: chave,
+            numero: nfe.numero,
+            serie: nfe.serie,
+            data_emissao: nfe.data_emissao,
+            valor_total: nfe.valor_total,
+            quantidade_itens: nfe.quantidade_itens || 0,
+            descricao: nfe.descricao_produtos || '',
+            cpf_cnpj_emitente: nfe.cpf_cnpj_emitente,
+            nome_emitente: nfe.nome_emitente,
+            cpf_cnpj_dest: nfe.cpf_cnpj_dest,
+            nome_dest: nfe.nome_dest
+        };
+    } catch (e) {
+        console.error('Erro ao buscar NF-e:', e);
+        return null;
+    }
+}
+
+function preencherNfeEmCtePelaChaave(chaveInput, targetPrefix) {
+    const chave = chaveInput.value.replace(/\D/g, '');
+    if (chave.length !== 44) {
+        mostrarToast('Chave deve ter 44 dígitos', 'error');
+        return;
+    }
+
+    buscarDadosNfePorChave(chave).then(nfe => {
+        if (!nfe) {
+            mostrarToast('NF-e não encontrada', 'error');
+            return;
+        }
+
+        const idPrefix = targetPrefix === 'remetente' ? 'cteRem' : 'cteDest';
+        document.getElementById(idPrefix + 'Chave').value = nfe.chave;
+        document.getElementById(idPrefix + 'Numero').value = nfe.numero;
+        document.getElementById(idPrefix + 'Serie').value = nfe.serie;
+        document.getElementById(idPrefix + 'ValorTotal').value = nfe.valor_total;
+        document.getElementById(idPrefix + 'QtdItens').value = nfe.quantidade_itens;
+
+        mostrarToast('NF-e carregada com sucesso', 'success');
+    });
+}
+
+/**
+ * Inicializa o redimensionamento manual de colunas para uma tabela
+ * @param {string} tableId ID da tabela
+ */
+function initTableResizer(tableId) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    
+    // Evita inicialização múltipla
+    if (table.dataset.resizerInited === 'true') return;
+    table.dataset.resizerInited = 'true';
+    
+    const ths = table.querySelectorAll('thead th');
+    
+    ths.forEach(th => {
+        // Cria o handle de redimensionamento
+        const handle = document.createElement('div');
+        handle.className = 'resizer-handle';
+        th.appendChild(handle);
+        
+        let startX, startWidth;
+        
+        handle.addEventListener('mousedown', function(e) {
+            startX = e.pageX;
+            startWidth = th.offsetWidth;
+            
+            handle.classList.add('resizing');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            
+            const onMouseMove = (e) => {
+                const delta = e.pageX - startX;
+                const newWidth = Math.max(40, startWidth + delta);
+                th.style.width = newWidth + 'px';
+                // Para table-layout: fixed, precisamos garantir que o width do TH seja respeitado
+                th.style.minWidth = newWidth + 'px';
+            };
+            
+            const onMouseUp = () => {
+                handle.classList.remove('resizing');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+            
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+    });
+}

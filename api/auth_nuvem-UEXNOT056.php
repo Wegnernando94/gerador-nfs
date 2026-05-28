@@ -51,7 +51,7 @@ function nuvemFiscalToken(): string
             'grant_type'    => 'client_credentials',
             'client_id'     => NUVEM_CLIENT_ID,
             'client_secret' => NUVEM_CLIENT_SECRET,
-            'scope'         => 'empresa nfe cep cnpj',
+            'scope'         => 'empresa nfe cte cep cnpj',
         ]),
         CURLOPT_HTTPHEADER     => [
             'Content-Type: application/x-www-form-urlencoded',

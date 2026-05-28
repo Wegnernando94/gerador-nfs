@@ -60,7 +60,28 @@ $xml .= "    <infCte Id=\"CTe{$chave}\" versao=\"4.00\">\n";
     $xml .= "        <cMunIni>{$ide['cMunIni']}</cMunIni><xMunIni>{$ide['xMunIni']}</xMunIni><UFIni>{$ide['UFIni']}</UFIni>\n";
     $xml .= "        <cMunFim>{$ide['cMunFim']}</cMunFim><xMunFim>{$ide['xMunFim']}</xMunFim><UFFim>{$ide['UFFim']}</UFFim>\n";
     $xml .= "        <retira>{$ide['retira']}</retira><indIEToma>{$ide['indIEToma']}</indIEToma>\n";
-    if (isset($ide['toma3'])) $xml .= "        <toma3><toma>{$ide['toma3']['toma']}</toma></toma3>\n";
+    if (isset($ide['toma3'])) {
+        $xml .= "        <toma3><toma>{$ide['toma3']['toma']}</toma></toma3>\n";
+    } elseif (isset($ide['toma4'])) {
+        $t4 = $ide['toma4'];
+        $xml .= "        <toma4>\n";
+        $xml .= "          <toma>4</toma>\n";
+        if (!empty($t4['CNPJ'])) $xml .= "          <CNPJ>{$t4['CNPJ']}</CNPJ>\n";
+        elseif (!empty($t4['CPF'])) $xml .= "          <CPF>{$t4['CPF']}</CPF>\n";
+        if (!empty($t4['IE']))    $xml .= "          <IE>{$t4['IE']}</IE>\n";
+        $xml .= "          <xNome>{$t4['xNome']}</xNome>\n";
+        if (!empty($t4['xFant'])) $xml .= "          <xFant>{$t4['xFant']}</xFant>\n";
+        $xml .= "          <enderToma>\n";
+        $xml .= "            <xLgr>{$t4['enderToma']['xLgr']}</xLgr>\n";
+        $xml .= "            <nro>{$t4['enderToma']['nro']}</nro>\n";
+        $xml .= "            <xBairro>{$t4['enderToma']['xBairro']}</xBairro>\n";
+        $xml .= "            <cMun>{$t4['enderToma']['cMun']}</cMun>\n";
+        $xml .= "            <xMun>{$t4['enderToma']['xMun']}</xMun>\n";
+        $xml .= "            <CEP>{$t4['enderToma']['CEP']}</CEP>\n";
+        $xml .= "            <UF>{$t4['enderToma']['UF']}</UF>\n";
+        $xml .= "          </enderToma>\n";
+        $xml .= "        </toma4>\n";
+    }
     $xml .= "      </ide>\n";
 
     // Compl
@@ -177,11 +198,29 @@ $xml .= "    </infProt>\n";
 $xml .= "  </protCTe>\n";
 $xml .= "</cteProc>";
 
-echo json_encode([
+$res = [
     'status' => 'sucesso',
     'simulado' => true,
+    'id' => 'sim_' . time() . '_' . rand(1000, 9999),
     'chave' => $chave,
     'xml' => base64_encode($xml),
     'payload' => $data,
-    'data_emissao' => date('d/m/Y H:i:s')
-]);
+    'data_emissao' => date('Y-m-d\TH:i:sP'),
+    'numero' => (int)$nCT,
+    'serie' => (int)$serie,
+    'valor_total' => (float)($vPrest['vTPrest'] ?? 0),
+    'motivo_status' => 'Autorizado o uso do CTe (Simulação Local)'
+];
+
+// Salvar em arquivo local para aparecer na grid
+$file = __DIR__ . '/../data/ctes_simulados.json';
+$simulados = [];
+if (file_exists($file)) {
+    $simulados = json_decode(file_get_contents($file), true) ?: [];
+}
+// Manter apenas os últimos 50 simulados
+array_unshift($simulados, $res);
+$simulados = array_slice($simulados, 0, 50);
+file_put_contents($file, json_encode($simulados, JSON_PRETTY_PRINT));
+
+echo json_encode($res);

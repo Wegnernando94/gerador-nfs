@@ -26,6 +26,7 @@ $orderby = isset($_GET['$orderby']) ? $_GET['$orderby']                         
 $cpfCnpj = isset($_GET['cpf_cnpj']) ? preg_replace('/\D/', '', $_GET['cpf_cnpj']) : '';
 $numero  = isset($_GET['numero'])  ? (int)$_GET['numero']                         : 0;
 $serie   = isset($_GET['serie'])   ? (int)$_GET['serie']                          : 0;
+$status  = isset($_GET['status'])  ? trim($_GET['status'])                         : '';
 
 if (!$cpfCnpj) {
     http_response_code(400);
