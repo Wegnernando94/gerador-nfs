@@ -1,5 +1,7 @@
 config.php
+config/config.php
 config.js
+config/config.js
 .claude
 # Diagnóstico / utilitários locais
 test_ssl.php
