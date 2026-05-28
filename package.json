@@ -3,5 +3,8 @@
     "description": "Projeto PHP para o Render",
     "require": {
         "php": ">=8.1"
+    },
+    "devDependencies": {
+        "sharp": "^0.34.5"
     }
 }

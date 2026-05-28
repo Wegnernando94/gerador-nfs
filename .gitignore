@@ -3,6 +3,11 @@ config/config.php
 config.js
 config/config.js
 .claude
+
+# Node
+node_modules/
+package.json
+package-lock.json
 # Diagnóstico / utilitários locais
 test_ssl.php
 
