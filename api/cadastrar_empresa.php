@@ -104,8 +104,11 @@ function salvarCnpjLocal(string $cnpj): void {
     }
 }
 
-// Handle 409 Conflict — empresa already registered in Nuvem Fiscal
-if ($status === 409) {
+// Handle 409 Conflict ou body com EmpresaAlreadyExists — empresa já cadastrada
+$isAlreadyExists = $status === 409
+    || ($body['error']['code'] ?? '') === 'EmpresaAlreadyExists';
+
+if ($isAlreadyExists) {
     $cnpj = preg_replace('/\D/', '', $requestBody['cpf_cnpj'] ?? '');
     if ($cnpj !== '') salvarCnpjLocal($cnpj);
     http_response_code(409);
