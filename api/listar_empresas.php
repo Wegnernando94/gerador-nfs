@@ -24,25 +24,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'HEAD') {
 require_once __DIR__ . '/auth_nuvem.php';
 
 try {
-    // Busca cada empresa pelo CNPJ salvo localmente
-    // (a API Nuvem Fiscal exige cpf_cnpj como filtro — não suporta listagem sem ele)
     $arquivo = __DIR__ . '/../data/empresas_locais.json';
     $cnpjs = [];
     if (file_exists($arquivo)) {
         $cnpjs = json_decode(file_get_contents($arquivo), true) ?? [];
     }
 
+    // Sanitiza todos os CNPJs
+    $cnpjsSanitizados = [];
+    foreach ($cnpjs as $c) {
+        $c = preg_replace('/\D/', '', $c);
+        if ($c !== '') $cnpjsSanitizados[] = $c;
+    }
+
     $empresas = [];
-    foreach ($cnpjs as $cnpj) {
-        $cnpj = preg_replace('/\D/', '', $cnpj);
-        if ($cnpj === '') continue;
-        $r = nuvemFiscalRequest('GET', '/empresas/' . $cnpj);
-        if ($r['status'] === 200 && !empty($r['body']['cpf_cnpj'])) {
-            $empresas[] = $r['body'];
+    $erros    = [];
+
+    foreach ($cnpjsSanitizados as $cnpj) {
+        try {
+            $r = nuvemFiscalRequest('GET', '/empresas/' . $cnpj);
+            if ($r['status'] === 200 && !empty($r['body']['cpf_cnpj'])) {
+                $empresas[] = $r['body'];
+            } elseif ($r['status'] === 404) {
+                // Empresa salva localmente mas não encontrada na Nuvem Fiscal
+                $empresas[] = [
+                    'cpf_cnpj'          => $cnpj,
+                    'nome_razao_social'  => 'CNPJ ' . $cnpj . ' (não cadastrado)',
+                    '_pendente'         => true,
+                ];
+            } else {
+                $erros[] = ['cnpj' => $cnpj, 'status' => $r['status']];
+                error_log('[listar_empresas] Falha CNPJ ' . $cnpj . ': HTTP ' . $r['status']);
+            }
+        } catch (Exception $eInner) {
+            $erros[] = ['cnpj' => $cnpj, 'erro' => $eInner->getMessage()];
+            error_log('[listar_empresas] Exceção CNPJ ' . $cnpj . ': ' . $eInner->getMessage());
         }
     }
 
-    echo json_encode(['data' => $empresas]);
+    $resp = ['data' => $empresas];
+    if (!empty($erros)) {
+        $resp['avisos'] = $erros;
+    }
+
+    echo json_encode($resp);
 
 } catch (Exception $e) {
     http_response_code(500);
